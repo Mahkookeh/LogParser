@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Text files
+*.txt
+
 # Distribution / packaging
 .Python
 build/
@@ -126,4 +129,8 @@ venv.bak/
 dmypy.json
 
 # Pyre type checker
+<<<<<<< HEAD
 .pyre/
+=======
+.pyre/
+>>>>>>> master
