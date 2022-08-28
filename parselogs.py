@@ -135,7 +135,7 @@ chrome_options.add_argument("--headless")
 
 # Create output file and add header line
 with open('logResults.txt', 'w') as f:
-    f.write("Boss, Mode, Phase, Player Id, Character, Class, Target DPS, % Target DPS, Power DPS, Condi DPS, Duration, Log Url, In-House Players, Total Players\n")
+    f.write("Boss, Duration, Mode, Phase, Player Id, Character, Class, Target DPS, % Target DPS, Power DPS, Condi DPS, Log Url, In-House Players, Total Players\n")
 
 # Iterate through all logs 
 log_count = 0 
@@ -222,7 +222,7 @@ for URL in urls:
         player_power_dps = td_tags[5].text.strip()
         player_condi_dps = td_tags[6].text.strip()
         # player_breakbar_dps = td_tags[7].text.strip()
-        result = f"{boss_name}, {mode}, {current_phase}, {player_id}, {player_character}, {player_class}, {player_target_dps}, {player_percent_target_dps}, {player_power_dps}, {player_condi_dps}, {duration}, {log_url}\n"
+        result = f"{boss_name}, {duration}, {mode}, {current_phase}, {player_id}, {player_character}, {player_class}, {player_target_dps}, {player_percent_target_dps}, {player_power_dps}, {player_condi_dps}, {log_url}\n"
         final_result += result
 
     result_with_player_count = ""
