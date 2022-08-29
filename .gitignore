@@ -134,4 +134,4 @@ dmypy.json
 .pyre/
 
 # Config file with credentials
-config.yaml
+config.yml
