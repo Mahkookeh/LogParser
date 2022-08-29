@@ -1,0 +1,12 @@
+databaseCredentials:    
+    database: LogParser
+    host: localhost
+    user: postgres
+    password: a
+    port: 5432   
+files:
+    includedPlayers: includedPlayers.txt
+    urlList: urlList.txt
+    logResults: logResults.txt
+    debugLogging: logParser.log
+    acceptedBossList: acceptedBossList.txt

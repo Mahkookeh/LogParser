@@ -131,8 +131,7 @@ venv.bak/
 dmypy.json
 
 # Pyre type checker
-<<<<<<< HEAD
 .pyre/
-=======
-.pyre/
->>>>>>> master
+
+# Config file with credentials
+config.yaml
