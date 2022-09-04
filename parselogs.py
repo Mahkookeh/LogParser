@@ -95,7 +95,7 @@ def check_success(soup_content):
         return False
 
 # Get Phases from soup content
-def get_phase_soup_content(soup_content):
+def get_phase_soup_content(driver, soup_content):
     # Set phase to scrape
     phases = soup_content.find("ul", class_="nav nav-pills d-flex flex-row justify-content-center")
     # If it has phases, navigate to the right phase
@@ -168,12 +168,12 @@ def generate_log_id():
 def add_log_to_table(conn, cursor, log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version):
     log_id = check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp, time_end_timestamp, players_list)
 
-    cursor.execute("""INSERT INTO "Logs" ("LogUrl", "LogId", "Boss", "Mode", "Duration", "TimeStart", "TimeEnd", "Players", "TotalPlayers", "EliteInsightVersion") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl") DO NOTHING""", (log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version))
+    cursor.execute("""INSERT INTO "Logs" ("LogUrl", "LogId", "Boss", "Mode", "Duration", "TimeStart", "TimeEnd", "Players", "TotalPlayers", "EliteInsightVersion") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl") WHERE ("LogUrl" = %s) DO NOTHING""", (log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version, log_url))
     conn.commit() 
     return log_id
 
 # Add player to Players table
-def add_player_to_table(cursor, player_id, player_character, included_players):
+def add_player_to_table(conn, cursor, player_id, player_character, included_players):
     group_name = ''
 
     # If the player is in the list of included players, add them to the group specified
@@ -181,10 +181,12 @@ def add_player_to_table(cursor, player_id, player_character, included_players):
         # boba as test
         group_name = "Boba"
     cursor.execute("""INSERT INTO "Players" ("PlayerId", "Groups", "Characters") VALUES (%s, ARRAY [%s], ARRAY [%s]) ON CONFLICT ("PlayerId") DO UPDATE SET "Groups" = CASE WHEN %s = ANY("Players"."Groups") THEN "Players"."Groups" ELSE array_append("Players"."Groups", %s) END, "Characters" = CASE WHEN %s = ANY("Players"."Characters") THEN "Players"."Characters" ELSE array_append("Players"."Characters", %s) END""", (player_id, group_name, player_character, group_name, group_name, player_character, player_character))
+    conn.commit() 
 
 # Add player to Players table
-def add_data_to_table(cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps):
-    cursor.execute("""INSERT INTO "Data" ("LogUrl", "LogId", "PlayerId", "Character", "Class", "Phase", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl", "PlayerId", "Phase") DO NOTHING""", (log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps))
+def add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps):
+    cursor.execute("""INSERT INTO "Data" ("LogUrl", "LogId", "PlayerId", "Character", "Class", "Phase", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl", "PlayerId", "Phase") WHERE ("LogUrl" = %s, "PlayerId" = %s, "Phase" = %s) DO NOTHING""", (log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, log_url, player_id, current_phase))
+    conn.commit() 
 
 # Check if two logs are the same fight
 def check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp, time_end_timestamp, players_list):
@@ -211,18 +213,16 @@ def check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp
         logging.info(log_equality_value)
         log_equality_id, log_equality_players = log_equality_value
         if set(players_list) == set(log_equality_players):
-            print("Found a duplicate log")
-            logging.info("Found a duplicate log")
+            print(f"Found a duplicate log with id {log_equality_id}")
+            logging.info(f"Found a duplicate log with id {log_equality_id}")
             new_log_id = log_equality_id
             break
 
     return new_log_id
 
 
-def main():
 
-
-    conn, cursor = connect_database()
+def write_to_database(conn, cursor):
 
     # Pull list of included players from text file
     included_players = set(line.strip() for line in open(included_players_file))
@@ -309,8 +309,8 @@ def main():
 
         # Change phases and update soup content
         current_phase = None
-        soup_content, current_phase = get_phase_soup_content(soup_content)
-
+        soup_content, current_phase = get_phase_soup_content(driver, soup_content)
+        print(f"final phase: {current_phase}")
         # Finally close website
         driver.close()
 
@@ -410,9 +410,9 @@ def main():
             f"{player_percent_target_dps}, {player_power_dps}, {player_condi_dps}, {duration}, {log_url}, "\
             f"{included_player_count}, {total_player_count}, {time_start_timestamp}, "\
             f"{time_end_timestamp}, {elite_insights_version}\n"
-            add_player_to_table(cursor, player_id, player_character, included_players)
+            add_player_to_table(conn, cursor, player_id, player_character, included_players)
 
-            add_data_to_table(cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps)
+            add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps)
 
         # Ignore the log if there are less than the minimum included players
         if included_player_count >= included_player_minimum: 
@@ -420,6 +420,10 @@ def main():
                 f.write(result_with_player_count)
             # print(result_with_player_count)
 
+def main():
+    conn, cursor = connect_database()
+    write_to_database(conn, cursor)
     
+
 if __name__ == "__main__":
     main()
