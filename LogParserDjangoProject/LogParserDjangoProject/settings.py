@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import yaml
+
+config = yaml.safe_load(open("djangoconfig.yml"))
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,8 +22,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
+
+
+# Current list of files
+SECRET_KEY = config["credentials"]["secretKey"]
+DATABASE_NAME = config["credentials"]["database"]
+DATABASE_HOST = config["credentials"]["host"]
+DATABASE_USER = config["credentials"]["user"]
+DATABASE_PASSWORD = config["credentials"]["password"]
+DATABASE_PORT = config["credentials"]["port"]
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'secret-key-was-replaced'
+SECRET_KEY = config["credentials"]["secretKey"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -85,11 +99,11 @@ WSGI_APPLICATION = 'LogParserDjangoProject.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'LogParser',
-        'USER': 'postgres',
-        'PASSWORD': 'mda8aSBsRuv5xGpWKcha4udw',
-        'HOST': 'logparser-db.cri3hctguem6.us-west-1.rds.amazonaws.com',
-        'PORT': 5432,
+        'NAME': DATABASE_NAME,
+        'USER': DATABASE_USER,
+        'PASSWORD': DATABASE_PASSWORD,
+        'HOST': DATABASE_HOST,
+        'PORT': DATABASE_PORT,
 
     }
 }
