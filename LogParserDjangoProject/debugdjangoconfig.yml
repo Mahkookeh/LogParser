@@ -1,0 +1,7 @@
+credentials:    
+    database: LogParser
+    host: localhost
+    user: postgres
+    password: a
+    port: 5432
+    secretKey: %jc*^l74)32fgo@*0*m#_368v+qn*)*ar0z296u(c4t$i78t7#
