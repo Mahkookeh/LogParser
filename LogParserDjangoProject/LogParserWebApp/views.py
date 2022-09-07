@@ -11,6 +11,7 @@ from django.core.paginator import Paginator
 import operator
 import itertools
 from django.utils.dateparse import parse_duration
+import csv
 
 # Create your views here.
 # TODO:
@@ -22,6 +23,7 @@ from django.utils.dateparse import parse_duration
 # remove player group
 # update player characters
 # remove player characters
+
 
 def index(request):
     return HttpResponse("Hello, world. You're at the LogParserWebApp index.")
@@ -42,7 +44,8 @@ class PlayersViewSet(viewsets.ModelViewSet):
 
 class LogsWithDataView(APIView):
 
-    def get(self, request):
+    def get(self, request, format=None):
+
         # Query Parameters
         group = self.request.query_params.get('group')
         if not group:
@@ -87,7 +90,8 @@ class LogsWithDataView(APIView):
             leaderboard_list = cursor.fetchall()
 
         # Serialize result data
-        serialized_logs = [LogsWithData(**{'Boss' : m[0], 'Duration' : m[1], 'Mode' : m[2], 'Phase' : m[3], 'PlayerId' : m[4], 'Character' : m[5], 'class_field' : m[6], 'TargetDps' : m[7], 'PercentTargetDps' : m[8], 'PowerDps' : m[9], 'CondiDps' : m[10], 'LogUrl' : m[11], 'InHousePlayers' : m[12], 'TotalPlayers' : m[13]}) for m in leaderboard_list]
+        serialized_logs = [LogsWithData(**{'Boss' : m[0], 'Duration' : m[1], 'Mode' : m[2], 'Phase' : m[3], 'PlayerId' : m[4], 'Character' : m[5], 'Class' : m[6], 'TargetDps' : m[7], 'PercentTargetDps' : m[8], 'PowerDps' : m[9], 'CondiDps' : m[10], 'LogUrl' : m[11], 'InHousePlayers' : m[12], 'TotalPlayers' : m[13]}) for m in leaderboard_list]
         serializer = LogsWithDataSerializer(serialized_logs, many=True)
+
 
         return Response(serializer.data)

@@ -54,6 +54,7 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
+    'drf_yasg',
 ]
 
 LOCAL_APPS = [
@@ -115,6 +116,7 @@ REST_FRAMEWORK = {
     # https://www.django-rest-framework.org/api-guide/renderers/
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework_csv.renderers.CSVRenderer',
     ],
 
     # Authentication
@@ -142,6 +144,7 @@ REST_FRAMEWORK = {
         # Choose parser to use
         'rest_framework.parsers.JSONParser',
         # 'rest_framework.parsers.FormParser',
+        'rest_framework_csv.renderers.CSVRenderer',
         # 'rest_framework.parsers.MultiPartParser',
     ],
 
@@ -160,6 +163,8 @@ REST_FRAMEWORK = {
         # 'rest_framework.pagination.CursorPagination'
     'PAGE_SIZE': 20,
 
+    # Swagger schema class
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'  
 }
 
 # Only use in DEBUG mode

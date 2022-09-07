@@ -45,9 +45,8 @@ logs_router.register(
 
 
 urlpatterns = [
-    path('LogParserWebApp/', include(('LogParserWebApp.urls', 'log_parser'), namespace='log_parser')),
     path('admin/', admin.site.urls),
-
+    path('api/', include(('LogParserWebApp.urls', 'log_parser'), namespace='log_parser')),
     path('api/', include(data_router.urls)),
     path('api/', include(players_router.urls)),
     path('api/', include(logs_router.urls)),
