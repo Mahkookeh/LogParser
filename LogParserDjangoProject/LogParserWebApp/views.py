@@ -5,6 +5,7 @@ from rest_framework import viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework_csv.renderers import CSVRenderer
 from .models import Data, Players, Logs, LogsWithData
 from .serializers import DataSerializer, PlayersSerializer, LogsSerializer, LogsWithDataSerializer
 from django.core.paginator import Paginator
@@ -43,6 +44,15 @@ class PlayersViewSet(viewsets.ModelViewSet):
     queryset = Players.objects.all()
 
 class LogsWithDataView(APIView):
+
+    renderer_classes = [CSVRenderer]
+
+    def get_renderer_context(self):
+        context = super().get_renderer_context()
+        context['header'] = (
+                self.request.GET['fields'].split(',')
+                if 'fields' in self.request.GET else None)
+        return context
 
     def get(self, request, format=None):
 
