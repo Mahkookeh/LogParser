@@ -123,9 +123,10 @@ REST_FRAMEWORK = {
     # https://www.django-rest-framework.org/api-guide/authentication/
     'DEFAULT_AUTHENTICATION_CLASSES': [
         # Choose auth to use
-        # 'rest_framework.authentication.BasicAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.RemoteUserAuthentication',
+        'rest_framework.authentication.SessionAuthentication'
     ],
 
     # Permissions
@@ -145,7 +146,7 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.JSONParser',
         # 'rest_framework.parsers.FormParser',
         'rest_framework_csv.renderers.CSVRenderer',
-        # 'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.MultiPartParser',
     ],
 
     # Filtering

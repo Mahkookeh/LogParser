@@ -17,40 +17,12 @@ import uuid
 import pytz
 import yaml
 import logging
-
-
-config = yaml.safe_load(open("config.yml"))
-
-# Current list of files
-included_players_file = config["files"]["includedPlayers"]
-url_list_file = config["files"]["urlList"]
-log_results_file = config["files"]["logResults"]
-debug_logging_file = config["files"]["debugLogging"]
-
-current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-name = f"LogParserLogs\\{current_time}_{debug_logging_file}"
-print(name)
-logging.basicConfig(filename=name, level=logging.DEBUG)
-
 # Install Chrome Driver Manager
 chrome_driver_manager_path = ChromeDriverManager().install()
 
-# Start logging
-
-# Connect to the postgres database
-def connect_database():
-    conn = psycopg2.connect(database=config["databaseCredentials"]["database"],
-                            host=config["databaseCredentials"]["host"],
-                            user=config["databaseCredentials"]["user"],
-                            password=config["databaseCredentials"]["password"],
-                            port=config["databaseCredentials"]["port"])
-    cursor = conn.cursor()
-    cursor.execute("""SELECT table_name FROM information_schema.tables
-           WHERE table_schema = 'public'""")
-    return conn, cursor
-
 # Connect to a website
 def selenium_connect(log_url, chrome_options):
+    successful = False
     # Try connecting to the website 4 times before giving up
     for x in range(0,4):
         try:
@@ -67,8 +39,13 @@ def selenium_connect(log_url, chrome_options):
                     logging.error(str_error)
                     pass
                 if str_error:
-                    sleep(2)
+                    successful = False
+                    if y < 3:
+                        sleep(2)
+                    else:
+                        raise Exception(str_error)
                 else:
+                    successful = True
                     break
             wait.until(EC.visibility_of_element_located((By.ID, "content")))
             str_error = None
@@ -79,21 +56,25 @@ def selenium_connect(log_url, chrome_options):
             driver.close()
             pass
         if str_error:
-            sleep(2)
+            successful = False
+            if y < 3:
+                sleep(2)
+            else:
+                raise Exception(str_error)
         else:
+            successful = True
             break
-    return driver
+    return driver, successful
 
 def check_success(soup_content):
     success = soup_content.find("div", class_="mb-2 text text-success")
-    print(success)
     if success:
         return True
     else:
         return False
 
 # Get Phases from soup content
-def get_phase_soup_content(driver, soup_content):
+def get_phase_soup_content(driver, soup_content, desired_phase):
     # Set phase to scrape
     phases = soup_content.find("ul", class_="nav nav-pills d-flex flex-row justify-content-center")
     # If it has phases, navigate to the right phase
@@ -104,20 +85,12 @@ def get_phase_soup_content(driver, soup_content):
             # print(phase)
             current_phase = phase.text
             first_phase = phase.text if first_phase is None else first_phase
-            # If commandline has desired phase, set desired phase
-            if len(sys.argv) > 1:
-                desired_phase = sys.argv[1]
-            # Otherwise, set it to None and break out of phase search
-            else:
-                desired_phase = None
-                found = True
-                break
             # If desired phase is found:
             if desired_phase == phase.text:    
                 found = True
                 current_phase = phase.text
-                logging.info(current_phase)
-                print(current_phase)
+                # logging.info(current_phase)
+                # print(current_phase)
                 # Set current phase to another phase
                 desired_page = driver.find_element("xpath", f"//a[contains(text(), '{phase.text}')]")
                 driver.implicitly_wait(10)
@@ -149,15 +122,16 @@ def parse_footer(soup_content):
 
     elite_insights_version = re.search("Elite Insights (\d*.\d*.\d*.\d*)", str(footer)).group(1)
 
-    print(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
-    logging.info(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
+    # print(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
+    # logging.info(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
     time_start_timestamp = time_start_timestamp.astimezone(pytz.utc)
     time_end_timestamp = time_end_timestamp.astimezone(pytz.utc)
 
-    print(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
-    logging.info(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
-    # exit()
+    # print(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
+    # logging.info(f"Time Start: {time_start_timestamp}\nTime End: {time_end_timestamp}\nElite Insights Version: {elite_insights_version}")
+    
     return time_start_timestamp, time_end_timestamp, elite_insights_version
+
 
 def generate_log_id():
     return str(uuid.uuid4())
@@ -170,20 +144,15 @@ def add_log_to_table(conn, cursor, log_url, log_id, boss_name, mode, duration, t
     return log_id
 
 # Add player to Players table
-def add_player_to_table(conn, cursor, player_id, player_character, included_players):
+def add_player_to_table(conn, cursor, player_id, player_character):
+    
     group_name = ''
-
-    # If the player is in the list of included players, add them to the group specified
-    if player_id in included_players:
-        # boba as test
-        group_name = "Boba"
     cursor.execute("""INSERT INTO "Players" ("PlayerId", "Groups", "Characters") VALUES (%s, ARRAY [%s], ARRAY [%s]) ON CONFLICT ("PlayerId") DO UPDATE SET "Groups" = CASE WHEN %s = ANY("Players"."Groups") THEN "Players"."Groups" ELSE array_append("Players"."Groups", %s) END, "Characters" = CASE WHEN %s = ANY("Players"."Characters") THEN "Players"."Characters" ELSE array_append("Players"."Characters", %s) END""", (player_id, group_name, player_character, group_name, group_name, player_character, player_character))
     conn.commit() 
 
 # Add player to Players table
 def add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps):
 
-    print(f"{log_url}, {log_id}, {player_id}, {player_character}, {player_class}, {current_phase}, {player_target_dps}, {player_percent_target_dps}, {player_power_dps}, {player_condi_dps}")
     cursor.execute("""INSERT INTO "Data" ("LogUrl", "LogId", "PlayerId", "Character", "Class", "Phase", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl", "PlayerId", "Phase") WHERE ("LogUrl" = %s, "PlayerId" = %s, "Phase" = %s) DO NOTHING""", (log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, log_url, player_id, current_phase))
     conn.commit() 
 
@@ -191,7 +160,7 @@ def add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character
 def check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp, time_end_timestamp, players_list):
     
     duration_datetime = datetime.strptime(duration, "%Mm %Ss %fms")
-    print(duration_datetime)
+    # print(duration_datetime)
     duration_timedelta = timedelta(minutes=duration_datetime.minute,
                                 seconds=duration_datetime.second,
                                 microseconds=duration_datetime.microsecond)
@@ -221,40 +190,17 @@ def check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp
 
 
 
-def write_to_database(conn, cursor):
-
-    # Pull list of included players from text file
-    included_players = set(line.strip() for line in open(included_players_file))
-    # TODO
-    # Change to command line argument 
-    included_player_minimum = 5
-    print(included_players)
-    logging.info(included_players)
-
-
-    # Grab urls from text file
-    with open(url_list_file) as f:
-        urls = f.readlines()
-    print(urls)
-    logging.info(urls)
-    # Pull list of logs that are already parsed from text file
-    parsed_logs = set()
-
+def write_to_database(conn, cursor, url_list, phases):
 
 
     # Load website scraper
     chrome_options = Options()
     chrome_options.add_argument("--headless")
 
-    # Create output file and add header line
-    with open(log_results_file, 'w') as f:
-        f.write("Boss, Mode, Phase, Player Id, Character, Class, "\
-            "Target DPS, % Target DPS, Power DPS, Condi DPS, Duration, "\
-            "Log Url, In-House Players, Total Players, Start Time, End Time, Elite Insights Version\n")
-
     # Iterate through all logs 
     log_count = 0 
-    for URL in urls:
+    results = {}
+    for URL in url_list:
         print(URL)
         logging.info(URL)
         log_count += 1
@@ -265,7 +211,7 @@ def write_to_database(conn, cursor):
         log_id = generate_log_id()
 
         # Connect to the website
-        driver = selenium_connect(log_url, chrome_options)
+        driver, successful = selenium_connect(log_url, chrome_options)
         data = driver.page_source
 
         soup = BeautifulSoup(data, "html.parser")
@@ -278,13 +224,15 @@ def write_to_database(conn, cursor):
 
         # Check mode
         boss_name = soup_content.find(class_="card-header text-center").text
-        print(boss_name)
-        logging.info(boss_name)
+        # print(boss_name)
+        # logging.info(boss_name)
 
+        # Skip log if not a successful kill
         success = check_success(soup_content)
-        print(f"Success: {success}")
-        logging.info(f"Success: {success}")
+        # print(f"Success: {success}")
+        # logging.info(f"Success: {success}")
         if not success:
+            results.setdefault("Unsuccessful", []).append(URL)
             continue
 
         mode = "Normal"
@@ -303,126 +251,83 @@ def write_to_database(conn, cursor):
                     if not stacks:
                         stacks = 1
                     mode = f"EM{stacks}"        
-        logging.info(f"Mode: {mode}")
+        # logging.info(f"Mode: {mode}")
+
+        for desired_phase in phases[boss_name]:
+            # print(f'Log: {URL}, Boss: {boss_name}, Phase: {desired_phase}')
+
+            # Change phases and update soup content
+            current_phase = None
+            soup_content, current_phase = get_phase_soup_content(driver, soup_content, desired_phase)
+            # Get duration of the fight
+            duration_string = soup_content.find("div", class_="mb-2", text=re.compile(r'Duration')).text.split("Duration: ")[1]
+            duration = duration_string
+
+            # Get main dps table
+            dps_table = soup_content.find(id="dps-table_wrapper")
+
+            table_body = dps_table.find("tbody")
+
+            final_result = ""
+            # check all players in the log
+
+            all_player_stats = []
+            num_extraneous_players = 0
+            for player in table_body:
+                player_stats = []
+                td_tags = player.find_all("td")
+                player_subgroup = td_tags[0].text
+                player_class = td_tags[1].text
+                player_character = td_tags[2].text
+                player_id = td_tags[3].text
+                # Edge case where Conjured Swords on CA count as players
+                if player_id in {"Conjured Sword", "Saul D'Alessio"}:
+                    num_extraneous_players += 1
+                    continue
+                player_target_dps_info = str(td_tags[4])
+                regex_percent_target_dps = re.search("&lt;br&gt;(\d*\.?\d*%) of total&lt;br&gt;", player_target_dps_info)
+                player_percent_target_dps = regex_percent_target_dps.group(1)
+                player_target_dps = td_tags[4].text.strip()
+                player_power_dps = td_tags[5].text.strip()
+                player_condi_dps = td_tags[6].text.strip()
+                player_stats = [
+                    player_class,
+                    player_character,
+                    player_id,
+                    player_target_dps,
+                    player_percent_target_dps,
+                    player_power_dps,
+                    player_condi_dps
+                    ]
+                all_player_stats.append(player_stats)
+            
+
+            players_list = []
+
+            total_player_count = len(table_body) - num_extraneous_players
 
 
-        # Change phases and update soup content
-        current_phase = None
-        soup_content, current_phase = get_phase_soup_content(driver, soup_content)
-        print(f"final phase: {current_phase}")
-        # Finally close website
+            # Insert into players list
+            for player in all_player_stats:
+                player_class, player_character, player_id, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps = player
+                players_list.append(player_id)
+
+
+            log_id = add_log_to_table(conn, cursor, log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version)
+            
+
+            # Insert into player and data tables
+            for player in all_player_stats:
+                player_class, player_character, player_id, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps = player
+                add_player_to_table(conn, cursor, player_id, player_character)
+
+                add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps)
+
         driver.close()
 
+        results.setdefault("Successful", []).append(URL)
+    return results
 
-        # Get duration of the fight
-        duration_string = soup_content.find("div", class_="mb-2", text=re.compile(r'Duration')).text.split("Duration: ")[1]
-        duration = duration_string
-        print(duration_string)
-        logging.info(duration_string)
-        # if ()
-        # duration_datetime = datetime.strptime(duration_string, "%Mm %Ss %fms")
-        # print(duration_datetime)
-        # duration = timedelta(minutes=duration_datetime.minute,
-        #                               seconds=duration_datetime.second,
-        #                               microseconds=duration_datetime.microsecond)
-        print(duration)
-        logging.info(duration)
-
-
-        # Get main dps table
-        dps_table = soup_content.find(id="dps-table_wrapper")
-
-        table_body = dps_table.find("tbody")
-
-        # Check for number of included players
-        included_player_count = 0
-
-        final_result = ""
-        # check all players in the log
-
-        all_player_stats = []
-        num_extraneous_players = 0
-        for player in table_body:
-            player_stats = []
-            td_tags = player.find_all("td")
-            player_subgroup = td_tags[0].text
-            player_class = td_tags[1].text
-            player_character = td_tags[2].text
-            player_id = td_tags[3].text
-            # Edge case where Conjured Swords on CA count as players
-            if player_id in {"Conjured Sword", "Saul D'Alessio"}:
-                num_extraneous_players += 1
-                continue
-            # if player is an included player, add to count
-            if player_id in included_players:
-                print(f"included: {player_id}")
-                logging.info(f"included: {player_id}")
-                included_player_count += 1
-            else:
-                print(f"not included: {player_id}")
-                logging.info(f"not included: {player_id}")
-            player_target_dps_info = str(td_tags[4])
-            regex_percent_target_dps = re.search("&lt;br&gt;(\d*\.?\d*%) of total&lt;br&gt;", player_target_dps_info)
-            player_percent_target_dps = regex_percent_target_dps.group(1)
-            player_target_dps = td_tags[4].text.strip()
-            player_power_dps = td_tags[5].text.strip()
-            player_condi_dps = td_tags[6].text.strip()
-            # player_breakbar_dps = td_tags[7].text.strip()
-            player_stats = [
-                player_class,
-                player_character,
-                player_id,
-                player_target_dps,
-                player_percent_target_dps,
-                player_power_dps,
-                player_condi_dps
-                ]
-            # result = f"{boss_name}, {mode}, {current_phase}, {player_id}, {player_character}, {player_class}, {player_target_dps}, {player_percent_target_dps}, {player_power_dps}, {player_condi_dps}, {duration}, {log_url}\n"
-            all_player_stats.append(player_stats)
-            # final_result += result
-        
-
-        players_list = []
-
-
-        result_with_player_count = ""
-        # for player in final_result.split("\n")[:-1]:
-        #     player += f", {included_player_count}, {len(table_body) - num_extraneous_players}\n"
-        #     result_with_player_count += player
-        total_player_count = len(table_body) - num_extraneous_players
-
-
-        # Insert into players list
-        for player in all_player_stats:
-            player_class, player_character, player_id, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps = player
-            players_list.append(player_id)
-
-
-        log_id = add_log_to_table(conn, cursor, log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version)
-        
-
-        # Insert into player and data tables
-        for player in all_player_stats:
-            player_class, player_character, player_id, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps = player
-            result_with_player_count += f"{boss_name}, {mode}, {current_phase}, "\
-            f"{player_id}, {player_character}, {player_class}, {player_target_dps}, "\
-            f"{player_percent_target_dps}, {player_power_dps}, {player_condi_dps}, {duration}, {log_url}, "\
-            f"{included_player_count}, {total_player_count}, {time_start_timestamp}, "\
-            f"{time_end_timestamp}, {elite_insights_version}\n"
-            add_player_to_table(conn, cursor, player_id, player_character, included_players)
-
-            add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps)
-
-        # Ignore the log if there are less than the minimum included players
-        if included_player_count >= included_player_minimum: 
-            with open(log_results_file, 'a') as f:
-                f.write(result_with_player_count)
-            # print(result_with_player_count)
-
-def main():
-    conn, cursor = connect_database()
-    write_to_database(conn, cursor)
-    
-
-if __name__ == "__main__":
-    main()
+def log_parser_helper(connection, cursor, url_list, phases):
+    results = write_to_database(connection, cursor, url_list, phases)
+    return results
