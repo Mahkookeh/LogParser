@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 import yaml
+import os
+from django.contrib.messages import constants as messages
+
 
 config = yaml.safe_load(open("djangoconfig.yml"))
 
@@ -54,12 +57,23 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
-    'drf_yasg',
+    'drf_spectacular',
+    'crispy_forms',
 ]
 
 LOCAL_APPS = [
     'LogParserWebApp.apps.LogparserwebappConfig',
 ]
+
+CRISPY_TEMPLATE_PACK = 'bootstrap4'
+
+MESSAGE_TAGS = {
+        messages.DEBUG: 'alert-secondary',
+        messages.INFO: 'alert-info',
+        messages.SUCCESS: 'alert-success',
+        messages.WARNING: 'alert-warning',
+        messages.ERROR: 'alert-danger',
+ }
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -78,7 +92,7 @@ ROOT_URLCONF = 'LogParserDjangoProject.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -144,9 +158,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PARSER_CLASSES': [
         # Choose parser to use
         'rest_framework.parsers.JSONParser',
-        # 'rest_framework.parsers.FormParser',
-        'rest_framework_csv.renderers.CSVRenderer',
         'rest_framework.parsers.MultiPartParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework_csv.renderers.CSVRenderer',
     ],
 
     # Filtering
@@ -165,7 +179,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 
     # Swagger schema class
-    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema'  
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema'  
 }
 
 # Only use in DEBUG mode
@@ -201,6 +215,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Log Parser API',
+    'DESCRIPTION': 'API for parsing data from Elite Insight logs of Guild Wars 2 encounters.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    # OTHER SETTINGS
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/

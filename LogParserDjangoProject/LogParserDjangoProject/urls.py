@@ -16,8 +16,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework import routers
-from LogParserWebApp.views import DataViewSet, PlayersViewSet, LogsViewSet, LogsWithDataView
-
+from LogParserWebApp.views import DataViewSet, PlayersViewSet, LogsViewSet, LogsWithDataView, index, register_request, login_request, logout_request, password_reset_request
+from django.contrib.auth import views as auth_views
 
 # Data router
 data_router = routers.SimpleRouter()
@@ -46,6 +46,16 @@ logs_router.register(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', index, name='index'),
+    path('register/', register_request, name='register'),
+    path('login/', login_request, name='login'),
+    path('logout/', logout_request, name= 'logout'),
+    path('accounts/', include('django.contrib.auth.urls')),
+    path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='LogParserWebApp/password/password_reset_done.html'), name='password_reset_done'),
+    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name="LogParserWebApp/password/password_reset_confirm.html"), name='password_reset_confirm'),
+    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='LogParserWebApp/password/password_reset_complete.html'), name='password_reset_complete'),
+    path("password_reset", password_reset_request, name="password_reset"),
+
     path('api/', include(('LogParserWebApp.urls', 'log_parser'), namespace='log_parser')),
     path('api/', include(data_router.urls)),
     path('api/', include(players_router.urls)),
