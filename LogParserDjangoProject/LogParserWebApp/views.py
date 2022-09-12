@@ -16,7 +16,7 @@ import itertools
 from django.utils.dateparse import parse_duration
 import csv
 import io
-from .logparsehelper import log_parser_helper
+from .revisedlogparsehelper import log_parser_helper
 from drf_yasg.utils import swagger_auto_schema
 import json
 
@@ -142,16 +142,18 @@ class LogsWithDataView(APIView):
                 io_string = io.StringIO(decoded_file)
                 reader = csv.reader(io_string)
                 url_list = [x[0] for x in list(reader)]
+                if len(url_list) > 50:
+                    return HttpResponseBadRequest("List of may contain at most 50 urls.")
             # Check for phase configuration file
-            if file.name == 'phases.json':
+            if file.name == 'phaseConfig.json':
                 # Convert InMemoryUploadedFile to string
                 # Convert phases json file to dictionary
                 decoded_file = file.read().decode()
-                phases = json.loads(decoded_file)
-        # Try parse urls with given phases 
+                phase_config = json.loads(decoded_file)
+        # Try parse urls with given phase config 
         with connection.cursor() as cursor:
             try:
-                results = log_parser_helper(connection, cursor, url_list, phases)
+                results = log_parser_helper(connection, cursor, url_list, phase_config)
             except Exception as e:
                 raise SuspiciousOperation('Failed to do something: %s' % str(e))
     

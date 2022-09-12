@@ -18,7 +18,7 @@ import pytz
 import yaml
 import logging
 # Install Chrome Driver Manager
-chrome_driver_manager_path = ChromeDriverManager().install()
+chrome_driver_manager_path = ChromeDriverManager(version='90.0.4430.24').install()
 
 # Connect to a website
 def selenium_connect(log_url, chrome_options):
@@ -196,6 +196,8 @@ def write_to_database(conn, cursor, url_list, phases):
     # Load website scraper
     chrome_options = Options()
     chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
 
     # Iterate through all logs 
     log_count = 0 
