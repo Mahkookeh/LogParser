@@ -88,8 +88,8 @@ def get_scripts_from_url( URL):
     scripts = soup.find_all('script')
 
     for s in scripts:
-        if 'logData' in s.text:
-            script = s.text
+        if '_logData = ' in s.text:
+            script = s.text  
             script = script.split('_logData = ')[1]
             script = script.split(';')[0]
 
@@ -232,6 +232,7 @@ def write_to_database(conn, cursor, url_list, phase_config):
     log_count = 0 
     results = {}
     for URL in url_list:
+        print(URL)
         data = parse_and_upload_data_for_url(conn, cursor, URL, phase_config, log_count)
         log_count += 1
         if data:

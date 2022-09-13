@@ -324,6 +324,13 @@ class LogsWithDataView(APIView):
     #   'group' - What group to query the leaderboard for
     #   'InHousePlayers - Minimum number of group members allowed in queried logs
     '''
+    @extend_schema(
+        operation_id='get_leaderboard',
+        parameters=[
+            OpenApiParameter(name='group', description='Name of Group  (Default: Boba)', type=str),
+            OpenApiParameter(name='inhouseplayers', description='Number of In House Players to query for (Default: 5)', type=int),
+        ]
+    )    
     def get(self, request, format=None):
         # Query Parameters
         group = self.request.query_params.get('group')
