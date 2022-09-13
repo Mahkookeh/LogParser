@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 from rest_framework import routers
-from LogParserWebApp.views import DataViewSet, PlayersViewSet, LogsViewSet, LogsWithDataView, index, register_request, login_request, logout_request, password_reset_request
+from LogParserWebApp.views import DataViewSet, PlayerViewSet, LogViewSet, LogsWithDataView, index, register_request, login_request, logout_request, password_reset_request
 from django.contrib.auth import views as auth_views
 
 # Data router
@@ -31,7 +31,7 @@ data_router.register(
 players_router = routers.SimpleRouter()
 players_router.register(
     r'players',
-    PlayersViewSet,
+    PlayerViewSet,
     basename='players',
 )
 
@@ -39,7 +39,7 @@ players_router.register(
 logs_router = routers.SimpleRouter()
 logs_router.register(
     r'logs',
-    LogsViewSet,
+    LogViewSet,
     basename='logs',
 )
 

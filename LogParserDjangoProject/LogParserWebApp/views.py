@@ -4,9 +4,9 @@ import itertools
 import json
 import operator
 from .forms import NewUserForm
-from .models import Data, Players, Logs, LogsWithData
+from .models import Data, Player, Log, LogsWithData
 from .revisedlogparsehelper import log_parser_helper
-from .serializers import DataSerializer, PlayersSerializer, LogsSerializer, LogsWithDataSerializer
+from .serializers import DataSerializer, PlayerSerializer, LogSerializer, LogsWithDataSerializer, GroupSerializer
 from django.contrib import messages
 from django.contrib.auth import login, authenticate, logout 
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm
@@ -38,6 +38,11 @@ def index(request):
     return render (request=request, template_name="LogParserWebApp/homepage.html")
 
 
+''' Register Account Request
+#   Supports API routes
+#       GET - Creates new user form
+#       POST - Generates new user with information in user form
+'''  
 def register_request(request):
     if request.method == "POST":
         form = NewUserForm(request.POST)
@@ -52,6 +57,11 @@ def register_request(request):
     return render (request=request, template_name="LogParserWebApp/register.html", context={"register_form":form})
 
 
+''' Login Account Request
+#   Supports API routes
+#       GET - Creates new authentication form
+#       POST - Authenticates user with information in authentication form
+'''  
 def login_request(request):
     if request.method == "POST":
         form = AuthenticationForm(request, data=request.POST)
@@ -71,12 +81,21 @@ def login_request(request):
     return render(request=request, template_name="LogParserWebApp/login.html", context={"login_form":form})
 
 
+''' Logout Account Request
+#   Supports API routes
+#       GET - Logs out current user
+'''  
 def logout_request(request):
     logout(request)
     messages.info(request, "You have successfully logged out.") 
     return redirect("login")
 
 
+''' Password Reset Request
+#   Supports API routes
+#       GET - Creates new password reset form
+#       POST - Creates a password reset message containing link to reset password 
+'''  
 def password_reset_request(request):
     if request.method == "POST":
         password_reset_form = PasswordResetForm(request.POST)
@@ -117,8 +136,8 @@ class DataViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Gener
     queryset = Data.objects.all()
 
     ''' POST Request for specific log data
-    # Takes in data from request body:
-    #   'LogUrl' - URL of log to retrieve data for
+    #   Takes in data from request body:
+    #       'LogUrl' - URL of log to retrieve data for
     '''
     @extend_schema(
         operation_id='request_data',
@@ -158,13 +177,13 @@ class DataViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Gener
 #       GET - Gets list of logs (LogId,  TODO: Fill in columns)
 #       POST - Takes 'LogUrl' as a query parameter and retrieves data for that log
 ''' 
-class LogsViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
-    serializer_class = LogsSerializer
-    queryset = Logs.objects.all()    
+class LogViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    serializer_class = LogSerializer
+    queryset = Log.objects.all()    
 
     ''' POST Request for specific log
-    # Takes in data from request body:
-    #   'LogUrl' - URL of log to retrieve data for
+    #   Takes in data from request body:
+    #       'LogUrl' - URL of log to retrieve data for
     '''
     @extend_schema(
         operation_id='request_log',
@@ -189,7 +208,7 @@ class LogsViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Gener
     def create(self, request):
         if 'LogUrl' in request.data:
             url = request.data['LogUrl']
-            queryset = Logs.objects.filter(LogUrl=url).first()
+            queryset = Log.objects.filter(LogUrl=url).first()
             if queryset:
                 serializers = self.get_serializer(queryset)
                 return(Response(serializers.data))
@@ -203,21 +222,25 @@ class LogsViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Gener
 #   Supports API routes
 #       GET - Gets list of players (PlayerId, Groups, Characters)
 #       POST - Takes 'PlayerId' as a query parameter and retrieves data for that player
+#       PATCH - Takes list of groups and adds to player's current list of groups
 ''' 
-class PlayersViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
-    serializer_class = PlayersSerializer
-    queryset = Players.objects.all()
+class PlayerViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    lookup_value_regex = '[\w.]+'
+    serializer_class = PlayerSerializer
+    queryset = Player.objects.all()
+    http_method_names = ["get", "post", "patch"]
 
-    ''' POST Request for specific player
-    # Takes in data from request body:
-    #   'PlayerId' - PlayerId of player to retrieve data for
+
+    ''' PATCH Request for player
+    #   Takes in data from request body:
+    #       'Groups' - List of groups to add to player
     '''
     @extend_schema(
-        operation_id='request_player',
+        operation_id='update_player_group',
         request={
             'application/json': {
                 'schema': {
-                    'PlayerId': {
+                    'Groups': {
                         'type': 'string',
                         }
 
@@ -227,22 +250,24 @@ class PlayersViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Ge
         examples=[
             OpenApiExample(
                 'Example',
-                summary='GET Player by PlayerId',
-                description='GET Player, associated groups, and all character names corresponding to PlayerId player.1234',
-                value={'PlayerId' : 'player.1234'}
+                summary='Update Groups of Player by PlayerId',
+                description='Add a group to the list of groups associated with player with PlayerId player.1234',
+                value={'Groups' : ['GroupName']}
             ),]
     )
-    def create(self, request):
-        if 'PlayerId' in request.data:
-            player_id = request.data['PlayerId']
-            queryset = Players.objects.filter(PlayerId=player_id).first()
-            if queryset:
-                serializers = self.get_serializer(queryset)
-                return(Response(serializers.data))
-            else:
-                return HttpResponse(content=f"Player with PlayerId ({player_id}) not found.", status=204)
-        else:
-            return HttpResponseBadRequest("Missing PlayerId")
+    def partial_update(self, request, pk):
+        player = Player.objects.get(pk=pk)
+        print(player)
+        group_serializer = GroupSerializer(player, data=request.data, partial=True)
+        # retrieved_player = Player.objects.filter(PlayerId=player_id).first()
+        if group_serializer.is_valid():
+            print("is valid")
+            group_serializer.save()
+            player = Player.objects.get(pk=pk)
+            player_serializer = PlayerSerializer(player)
+            return Response(player_serializer.data, status=status.HTTP_200_OK)
+        print("not valid")
+        return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 # Leaderboard API View

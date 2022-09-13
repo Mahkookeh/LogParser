@@ -40,11 +40,9 @@ def add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character
 def check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp, time_end_timestamp, players_list):
     
     duration_datetime = datetime.strptime(duration, "%Mm %Ss %fms")
-    # print(duration_datetime)
     duration_timedelta = timedelta(minutes=duration_datetime.minute,
                                 seconds=duration_datetime.second,
                                 microseconds=duration_datetime.microsecond)
-    # Check boss name is same
     duration_minus5 = duration_timedelta - timedelta(seconds=5)
     duration_plus5 = duration_timedelta + timedelta(seconds=5)
     time_start_minus5 = time_start_timestamp - timedelta(seconds=5)

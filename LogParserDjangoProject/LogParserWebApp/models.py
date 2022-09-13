@@ -32,7 +32,7 @@ class Data(models.Model):
         unique_together = (('LogUrl', 'PlayerId', 'Phase'),)
 
 
-class Logs(models.Model):
+class Log(models.Model):
     LogUrl = models.TextField(db_column='LogUrl', primary_key=True)  
     LogId = models.TextField(db_column='LogId')  
     Boss = models.TextField(db_column='Boss')  
@@ -53,7 +53,7 @@ class Logs(models.Model):
         db_table = 'Logs'
 
 
-class Players(models.Model):
+class Player(models.Model):
     PlayerId = models.TextField(db_column='PlayerId', primary_key=True)  
     Groups = ArrayField(models.TextField(db_column='Groups', blank=True, null=True))
     Characters = ArrayField(models.TextField(db_column='Characters', blank=True, null=True)) 
