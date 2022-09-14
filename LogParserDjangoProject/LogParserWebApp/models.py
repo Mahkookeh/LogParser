@@ -91,6 +91,15 @@ class LogsWithData(models.Model):
         managed = False
 
 
+class LogsWithDataJson(models.Model):
+    Successful = ArrayField(models.TextField(blank=True, null=True), primary_key=True)
+    Unsuccessful = ArrayField(models.TextField(blank=True, null=True)) 
+
+    class Meta:
+        managed = False
+        unique_together = (('Successful', 'Unsuccessful'),)
+
+
 class AuthGroup(models.Model):
     name = models.CharField(unique=True, max_length=150)
 

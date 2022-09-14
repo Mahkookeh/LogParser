@@ -1,17 +1,17 @@
-import requests
-from time import sleep
-from bs4 import BeautifulSoup, SoupStrainer
-import re
-import sys
-import psycopg2
-from datetime import datetime, timezone, timedelta
-import uuid
-import pytz
-import yaml
-import logging
-from urllib.request import Request, urlopen
-import json
 import gc
+import json
+import logging
+import psycopg2
+import pytz
+import re
+import requests
+import sys
+import uuid
+import yaml
+from bs4 import BeautifulSoup, SoupStrainer
+from datetime import datetime, timezone, timedelta
+from time import sleep
+from urllib.request import Request, urlopen
 
 def generate_log_id():
     return str(uuid.uuid4())
@@ -73,7 +73,6 @@ def get_scripts_from_url( URL):
         request = Request(URL)
         request.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36')
         with urlopen(request) as url:
-            # s = url.read()
             page_source = url.read()
     except Exception as ex:
         print("Failed to load website.")

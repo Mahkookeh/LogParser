@@ -6,7 +6,7 @@ import operator
 from .forms import NewUserForm
 from .models import Data, Player, Log, LogsWithData
 from .revisedlogparsehelper import log_parser_helper
-from .serializers import DataSerializer, PlayerSerializer, LogSerializer, LogsWithDataSerializer, GroupSerializer
+from .serializers import DataSerializer, PlayerSerializer, LogSerializer, LogsWithDataSerializer, GroupSerializer, LogsWithDataJsonSerializer
 from django.contrib import messages
 from django.contrib.auth import login, authenticate, logout 
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm
@@ -24,7 +24,7 @@ from django.utils.dateparse import parse_duration
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample, OpenApiResponse
 from rest_framework import viewsets, mixins, status, serializers
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.parsers import MultiPartParser
@@ -134,12 +134,31 @@ def password_reset_request(request):
 class DataViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = DataSerializer
     queryset = Data.objects.all()
+    
+
+    ''' GET Request for specific log data
+    #   Returns
+    #       List of Log Data
+    '''
+    @extend_schema(
+        summary='Get all log data',
+        description='Get a list containing all log data',
+        request=DataSerializer,
+        responses={
+            201: OpenApiResponse(response=DataSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
+    )
+    def list(self, request):
+        return super().list(request)
 
     ''' POST Request for specific log data
     #   Takes in data from request body:
     #       'LogUrl' - URL of log to retrieve data for
     '''
     @extend_schema(
+        summary='Get specific log data',
+        description='Get specific log data by LogUrl.',
         operation_id='request_data',
         request={
             'application/json': {
@@ -151,6 +170,10 @@ class DataViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Gener
                     },
                 },
             },
+        responses={
+            201: OpenApiResponse(response=DataSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
         examples=[
             OpenApiExample(
                 'Example',
@@ -181,11 +204,30 @@ class LogViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Generi
     serializer_class = LogSerializer
     queryset = Log.objects.all()    
 
+    ''' GET Request for specific log data
+    #   Returns
+    #       List of Log Data
+    '''
+    @extend_schema(
+        summary='Get all logs',
+        description='Get a list containing all logs.',
+        request=LogSerializer,
+        responses={
+            201: OpenApiResponse(response=LogSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
+    )
+    def list(self, request):
+        return super().list(request)
+
+
     ''' POST Request for specific log
     #   Takes in data from request body:
     #       'LogUrl' - URL of log to retrieve data for
     '''
     @extend_schema(
+        summary='Get specific log',
+        description='Get specific log by LogUrl',
         operation_id='request_log',
         request={
             'application/json': {
@@ -197,11 +239,15 @@ class LogViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.Generi
                     },
                 },
             },
+        responses={
+            201: OpenApiResponse(response=LogSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
         examples=[
             OpenApiExample(
                 'Example',
                 summary='GET Log data by LogUrl',
-                description='GET Log data corresponding to LogUrl dps.report/abcd',
+                description='GET Log data corresponding to LogUrl dps.report/abcd.',
                 value={'LogUrl' : 'dps.report/abcd'}
             ),]
     )    
@@ -230,12 +276,47 @@ class PlayerViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.Upd
     queryset = Player.objects.all()
     http_method_names = ["get", "post", "patch"]
 
+    ''' GET Request for specific player data
+    #   Returns
+    #       Specific Player
+    '''
+    @extend_schema(
+        summary='Get specific player data',
+        description='Get specific player data by PlayerId.',
+        request=PlayerSerializer,
+        responses={
+            201: OpenApiResponse(response=PlayerSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
+    )
+    def retrieve(self, request):
+        return super().retrieve(request)
+
+
+    ''' GET Request for list of players
+    #   Returns
+    #       List containing all players
+    '''
+    @extend_schema(
+        summary='Get all players',
+        description='Get a list containing all players.',
+        request=PlayerSerializer,
+        responses={
+            201: OpenApiResponse(response=PlayerSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
+    )
+    def list(self, request):
+        return super().list(request)
+
 
     ''' PATCH Request for player
     #   Takes in data from request body:
     #       'Groups' - List of groups to add to player
     '''
     @extend_schema(
+        summary='Add group to player',
+        description='Add a group to the list of groups associated with player with PlayerId.',
         operation_id='update_player_group',
         request={
             'application/json': {
@@ -247,10 +328,14 @@ class PlayerViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.Upd
                     },
                 },
             },
+        responses={
+            201: OpenApiResponse(response=PlayerSerializer, description='Updated. Updated resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
         examples=[
             OpenApiExample(
                 'Example',
-                summary='Update Groups of Player by PlayerId',
+                summary='Update Groups of Player by PlayerId.',
                 description='Add a group to the list of groups associated with player with PlayerId player.1234',
                 value={'Groups' : ['GroupName']}
             ),]
@@ -278,6 +363,7 @@ class PlayerViewSet(mixins.RetrieveModelMixin, mixins.ListModelMixin, mixins.Upd
 ''' 
 class LogsWithDataView(APIView):
     # Set renderer class to include CSV support
+    serializer_class = LogsWithDataSerializer
     renderer_classes = [CSVRenderer]
     parser_classes = [MultiPartParser]
 
@@ -295,6 +381,8 @@ class LogsWithDataView(APIView):
     #   'phases.json' - File containing configuration of phases to parse each log for 
     '''
     @extend_schema(
+        summary='Upload and parse files',
+        description='Upload list of files and phase configuration and parse all contained urls.',
         operation_id='upload_file',
         request={
             'multipart/form-data': {
@@ -312,6 +400,10 @@ class LogsWithDataView(APIView):
                     },
                 },
             },
+        responses={
+            201: OpenApiResponse(response=LogsWithDataJsonSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
     )
     def post(self, request, format=None):
         parser_classes = (MultiPartParser,)
@@ -350,11 +442,17 @@ class LogsWithDataView(APIView):
     #   'InHousePlayers - Minimum number of group members allowed in queried logs
     '''
     @extend_schema(
+        summary='Get logs with data as csv',
+        description='Get CSV file containing all processed logs with data (leaderboard).',
         operation_id='get_leaderboard',
         parameters=[
             OpenApiParameter(name='group', description='Name of Group  (Default: Boba)', type=str),
             OpenApiParameter(name='inhouseplayers', description='Number of In House Players to query for (Default: 5)', type=int),
-        ]
+        ],
+        responses={
+            201: OpenApiResponse(response=LogsWithDataSerializer, description='Retrieved. Resource in response.'),
+            400: OpenApiResponse(description='Bad request (something invalid)')
+        },
     )    
     def get(self, request, format=None):
         # Query Parameters

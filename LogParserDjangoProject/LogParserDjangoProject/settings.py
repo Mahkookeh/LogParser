@@ -124,6 +124,8 @@ DATABASES = {
 }
 
 
+CSRF_TRUSTED_ORIGINS = ['https://logparser.fly.dev']
+
 # Rest Framework
 REST_FRAMEWORK = {
     # Rendering
@@ -139,7 +141,7 @@ REST_FRAMEWORK = {
         # Choose auth to use
         'rest_framework.authentication.BasicAuthentication',
         'rest_framework.authentication.TokenAuthentication',
-        'rest_framework.authentication.RemoteUserAuthentication',
+        # 'rest_framework.authentication.RemoteUserAuthentication',
         'rest_framework.authentication.SessionAuthentication'
     ],
 
@@ -222,6 +224,7 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API for parsing data from Elite Insight logs of Guild Wars 2 encounters.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'SCHEMA_PATH_PREFIX': '/api/v[0-9]',
     # OTHER SETTINGS
 }
 

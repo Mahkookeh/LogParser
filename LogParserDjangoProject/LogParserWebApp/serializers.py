@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Data, Player, Log, LogsWithData
+from .models import Data, Player, Log, LogsWithData, LogsWithDataJson
 
 
 # Serializer for log data table
@@ -48,4 +48,10 @@ class LogSerializer(serializers.ModelSerializer):
 class LogsWithDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = LogsWithData
+        fields = '__all__'
+
+# Serializer for groups list belonging to player (not actual table)
+class LogsWithDataJsonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LogsWithDataJson
         fields = '__all__'
