@@ -1,9 +1,8 @@
-from django.urls import path, re_path
-from . import views
-from rest_framework import permissions
-from django.views.generic import TemplateView
-from rest_framework.schemas import get_schema_view as get_view
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from django.urls import path
+from drf_spectacular.views import (
+    SpectacularAPIView, 
+    SpectacularRedocView, 
+    SpectacularSwaggerView)
 
 urlpatterns = [
     path('schema/', SpectacularAPIView.as_view(), name='schema'),

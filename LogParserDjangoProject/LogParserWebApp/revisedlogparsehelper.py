@@ -1,44 +1,48 @@
 import gc
 import json
 import logging
-import psycopg2
 import pytz
-import re
-import requests
-import sys
 import uuid
-import yaml
-from bs4 import BeautifulSoup, SoupStrainer
-from datetime import datetime, timezone, timedelta
-from time import sleep
-from urllib.request import Request, urlopen
+from bs4 import (
+    BeautifulSoup, 
+    SoupStrainer)
+from datetime import (
+    datetime, 
+    timedelta)
+from typing import Tuple
+from urllib.request import (
+    Request, 
+    urlopen)
 
+
+# Generate random uuid4 as a log id
 def generate_log_id():
     return str(uuid.uuid4())
 
+
 # Add log to Logs table
-def add_log_to_table(conn, cursor, log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version):
+def add_log_to_table(conn, cursor, log_url: str, log_id: str, boss_name: str, mode: str, duration: str, time_start_timestamp: datetime, time_end_timestamp: datetime, players_list: "list[str]", total_player_count: int, elite_insights_version: str) -> str:
     log_id = check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp, time_end_timestamp, players_list)
     cursor.execute("""INSERT INTO "Logs" ("LogUrl", "LogId", "Boss", "Mode", "Duration", "TimeStart", "TimeEnd", "Players", "TotalPlayers", "EliteInsightVersion") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl") WHERE ("LogUrl" = %s) DO NOTHING""", (log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version, log_url))
     conn.commit() 
     return log_id
 
+
 # Add player to Players table
-def add_player_to_table(conn, cursor, player_id, player_character):
-    
+def add_player_to_table(conn, cursor, player_id: str, player_character: str) -> None:
     group_name = ''
     cursor.execute("""INSERT INTO "Players" ("PlayerId", "Groups", "Characters") VALUES (%s, ARRAY [%s], ARRAY [%s]) ON CONFLICT ("PlayerId") DO UPDATE SET "Groups" = CASE WHEN %s = ANY("Players"."Groups") THEN "Players"."Groups" ELSE array_append("Players"."Groups", %s) END, "Characters" = CASE WHEN %s = ANY("Players"."Characters") THEN "Players"."Characters" ELSE array_append("Players"."Characters", %s) END""", (player_id, group_name, player_character, group_name, group_name, player_character, player_character))
     conn.commit() 
 
-# Add player to Players table
-def add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps):
 
+# Add player to Players table
+def add_data_to_table(conn, cursor, log_url: str, log_id: str, player_id: str, player_character: str, player_class: str, current_phase: str, player_target_dps: int, player_percent_target_dps: str, player_power_dps: int, player_condi_dps: int) -> None:
     cursor.execute("""INSERT INTO "Data" ("LogUrl", "LogId", "PlayerId", "Character", "Class", "Phase", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl", "PlayerId", "Phase") WHERE ("LogUrl" = %s, "PlayerId" = %s, "Phase" = %s) DO NOTHING""", (log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, log_url, player_id, current_phase))
     conn.commit() 
 
+
 # Check if two logs are the same fight
-def check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp, time_end_timestamp, players_list):
-    
+def check_log_equality(cursor, log_id: str, boss_name: str, duration: str, time_start_timestamp: datetime, time_end_timestamp: datetime, players_list: "list[str]") -> str:    
     duration_datetime = datetime.strptime(duration, "%Mm %Ss %fms")
     duration_timedelta = timedelta(minutes=duration_datetime.minute,
                                 seconds=duration_datetime.second,
@@ -66,7 +70,9 @@ def check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp
 
     return new_log_id
 
-def get_scripts_from_url( URL):
+
+# Grab log data value from script in URL html
+def get_scripts_from_url(URL: str) -> dict:
     page_source = None
     try:
         # Connect to the website
@@ -84,6 +90,7 @@ def get_scripts_from_url( URL):
     logDataDict = None
     scripts = soup.find_all('script')
 
+    # Iterate through each script tag and find the script that contains the _logData variable
     for s in scripts:
         if '_logData = ' in s.text:
             script = s.text  
@@ -99,7 +106,9 @@ def get_scripts_from_url( URL):
 
     return logDataDict
 
-def extract_useful_data_from_dict(logDataDict):
+
+# Extract useful data from dictioanry before destroying it
+def extract_useful_data_from_dict(logDataDict: dict) -> Tuple[bool, datetime, datetime, str, str, str, "list[str]", "list[dict]", "list[dict]", "list[dict]"]:
     # Success
     success = logDataDict['success']
 
@@ -132,19 +141,23 @@ def extract_useful_data_from_dict(logDataDict):
     return success, time_start, time_end, duration, elite_insights_version, boss_name, instance_buffs, player_dict, phases, target_dmg_distributions_taken
 
 
-def parse_and_upload_data_for_url(conn, cursor, URL, phase_config, log_count):
+# Parse log and upload data to database
+def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[str]", log_count: int) -> bool:
     log_count += 1
     print("log %d" % log_count)
     logging.info("log %d" % log_count)
     log_url = URL.strip()
 
+    # Initialize a log id
     log_id = generate_log_id()
 
+    # Grab data dictionary from url
     logDataDict = get_scripts_from_url(URL)
     if not logDataDict:
         print("Failed to create log data dictionary.")
         return False
 
+    # Fill important vars with data from dictionary and delete dictionary
     success, time_start, time_end, duration, elite_insights_version, boss_name, instance_buffs, player_dict, phases, target_dmg_distributions_taken = extract_useful_data_from_dict(logDataDict)
     del logDataDict
     gc.collect()
@@ -223,8 +236,8 @@ def parse_and_upload_data_for_url(conn, cursor, URL, phase_config, log_count):
     return True
 
 
-
-def write_to_database(conn, cursor, url_list, phase_config):
+# Add logs to database
+def write_to_database(conn, cursor, url_list: "list[str]", phase_config: "list[str]") -> dict:
     # Iterate through all logs 
     log_count = 0 
     results = {}
@@ -238,6 +251,7 @@ def write_to_database(conn, cursor, url_list, phase_config):
             results.setdefault("Unsuccessful", []).append(URL)
     return results
 
-def log_parser_helper(connection, cursor, url_list, phase_config):
+
+def log_parser_helper(connection, cursor, url_list: "list[str]", phase_config: "list[str]") -> dict:
     results = write_to_database(connection, cursor, url_list, phase_config)
     return results

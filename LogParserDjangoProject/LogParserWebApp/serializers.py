@@ -1,6 +1,10 @@
 from rest_framework import serializers
-
-from .models import Data, Player, Log, LogsWithData, LogsWithDataJson
+from .models import (
+    Data, 
+    Player, 
+    Log, 
+    LogsWithData, 
+    LogsWithDataJson)
 
 
 # Serializer for log data table
