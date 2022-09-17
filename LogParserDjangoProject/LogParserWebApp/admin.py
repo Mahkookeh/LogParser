@@ -9,4 +9,3 @@ from .models import (
 admin.site.register(Data)
 admin.site.register(Log)
 admin.site.register(Player)
-admin.site.register(LogsWithData)

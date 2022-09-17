@@ -202,12 +202,15 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
     total_player_count = len(players_list)
     log_id = add_log_to_table(conn, cursor, log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version)
 
+    desired_phases = phase_config[boss_name] if boss_name in phase_config else ['Full Fight']
+
+
     # Iterate through each phase and add data to tables for each player
     for phase_idx in range(len(phases)):
         current_phase = phases[phase_idx]
         current_phase_name = current_phase['name']
         phase_duration = phases[phase_idx]['duration'] / 1000
-        if current_phase_name in phase_config[boss_name]:
+        if current_phase_name in desired_phases:
             all_player_stats = []
             num_extraneous_players = 0
             for player_idx in range(len(players)):
