@@ -227,7 +227,7 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API for parsing data from Elite Insight logs of Guild Wars 2 encounters.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    'SCHEMA_PATH_PREFIX': '/api/v[0-9]',
+    'SCHEMA_PATH_PREFIX': '/api/',
     # OTHER SETTINGS
 }
 

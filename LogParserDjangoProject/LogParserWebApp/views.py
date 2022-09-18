@@ -15,6 +15,7 @@ from .serializers import (
     LogsWithDataSerializer, 
     GroupSerializer, 
     LogsWithDataJsonSerializer)
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import (
     login, 
@@ -449,7 +450,9 @@ class LogsWithDataView(APIView):
         # Convert InMemoryUploadedFile to string
         # Convert string to IOStream
         # Convert IOStream to CSV reader
-        urlListFile = request.FILES['Url List']
+        urlListFile = request.FILES.get('Url List')
+        if urlListFile is None:
+            return HttpResponseBadRequest("Missing Url List")
         decoded_file = urlListFile.read().decode()
         io_string = io.StringIO(decoded_file)
         reader = csv.reader(io_string)
@@ -460,9 +463,14 @@ class LogsWithDataView(APIView):
         # Grab Phase Config file
         # Convert InMemoryUploadedFile to string
         # Convert phases json file to dictionary
-        phaseConfigFile = request.FILES['Phase Config']
-        decoded_file = phaseConfigFile.read().decode()
-        phase_config = json.loads(decoded_file)
+        phaseConfigFile = request.FILES.get('Phase Config',  None)
+        if phaseConfigFile is None:
+            file_location = settings.BASE_DIR / 'static/phaseConfig.json'
+            with open(file_location) as json_data:
+                phase_config = json.load(json_data)
+        else:
+            decoded_file = phaseConfigFile.read().decode()
+            phase_config = json.loads(decoded_file)
 
         # Try parse urls with given phase config 
         with connection.cursor() as cursor:
