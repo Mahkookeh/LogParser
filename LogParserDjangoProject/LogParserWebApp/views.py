@@ -512,6 +512,12 @@ class LogsWithDataView(APIView):
         if inhouseplayers < 0 or inhouseplayers > 10:
             return HttpResponseBadRequest("Invalid number of in-house players.")
 
+        given_fields = self.request.query_params.get('fields')
+        if not given_fields:
+            default_fields = 'Boss,Duration,Mode,Phase,PlayerId,Character,Class,TargetDps,PercentTargetDps,PowerDps,CondiDps,LogUrl,InHousePlayers,TotalPlayers'
+            context = super().get_renderer_context()
+            context['header'] = (default_fields.split(','))
+
         # Connect to database and call query
         with connection.cursor() as cursor:
             cursor.execute("""SELECT "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "LogUrl", inhouseplayers, "TotalPlayers" FROM (
