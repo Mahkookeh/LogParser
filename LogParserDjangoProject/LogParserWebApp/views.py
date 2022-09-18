@@ -509,6 +509,8 @@ class LogsWithDataView(APIView):
         inhouseplayers = self.request.query_params.get('inhouseplayers')
         if not inhouseplayers:
             inhouseplayers = '5'
+        if inhouseplayers < 0 or inhouseplayers > 10:
+            return HttpResponseBadRequest("Invalid number of in-house players.")
 
         # Connect to database and call query
         with connection.cursor() as cursor:
