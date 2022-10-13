@@ -128,6 +128,9 @@ def extract_useful_data_from_dict(logDataDict: dict) -> Tuple[bool, datetime, da
 
     # List of instance buffs (emboldened)
     instance_buffs = logDataDict.get('instance_buffs')
+    # Unknown patch changed instance_buffs -> instanceBuffs (most likely Elite Insights Version 2.46.1.2)
+    if not instance_buffs:
+        instance_buffs = logDataDict.get('instanceBuffs')
 
     # List of dictionaries containing player data
     player_dict = logDataDict['players']
