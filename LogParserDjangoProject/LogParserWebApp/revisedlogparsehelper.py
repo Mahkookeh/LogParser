@@ -222,8 +222,12 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
 
                 player_target_dmg = current_phase['dpsStatsTargets'][player_idx][0][0]
                 player_target_dps = round(player_target_dmg / phase_duration)
-                target_total_dmg_taken = target_dmg_distributions_taken[phase_idx]['contributedDamage']           
-                player_percent_target_dps_value = player_target_dmg / target_total_dmg_taken
+                target_total_dmg_taken = target_dmg_distributions_taken[phase_idx]['contributedDamage']
+                ## TODO resolve Divided By Zero errors, until then, this will catch them
+                if target_total_dmg_taken == 0:
+                    player_percent_target_dps_value = 0
+                if target_total_dmg_taken != 0:            
+                    player_percent_target_dps_value = player_target_dmg / target_total_dmg_taken
                 player_percent_target_dps = str(round(player_percent_target_dps_value*100, 2)) + '%'
                 player_power_dps = round(current_phase['dpsStatsTargets'][player_idx][0][1] / phase_duration)         
                 player_condi_dps = round(current_phase['dpsStatsTargets'][player_idx][0][2] / phase_duration)
