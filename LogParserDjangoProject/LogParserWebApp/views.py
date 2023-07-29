@@ -423,6 +423,9 @@ class LogsWithDataView(APIView):
                         'type': 'file',
                         'format': 'binary'
                         },
+                    'Url List Limit': {
+                        'type': 'string',
+                        },
                     'Phase Config': {
                         'type': 'file',
                         'format': 'binary'
@@ -446,19 +449,22 @@ class LogsWithDataView(APIView):
         '''
         parser_classes = (MultiPartParser,)
         
-        # Grab Url List file
+        # Grab Url List file and max number of urls allowed in the list
         # Convert InMemoryUploadedFile to string
         # Convert string to IOStream
         # Convert IOStream to CSV reader
         urlListFile = request.FILES.get('Url List')
+        urlListLimit = request.data['Url List Limit']
+        if urlListLimit is None:
+            urlListLimit = 50
         if urlListFile is None:
             return HttpResponseBadRequest("Missing Url List")
         decoded_file = urlListFile.read().decode()
         io_string = io.StringIO(decoded_file)
         reader = csv.reader(io_string)
         url_list = [x[0] for x in list(reader)]
-        if len(url_list) > 50:
-            return HttpResponseBadRequest("List of may contain at most 50 urls.")
+        if len(url_list) > int(urlListLimit):
+            return HttpResponseBadRequest("List of may contain at most %d urls." % urlListLimit)
 
         # Grab Phase Config file
         # Convert InMemoryUploadedFile to string
