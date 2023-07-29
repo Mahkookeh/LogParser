@@ -509,7 +509,7 @@ class LogsWithDataView(APIView):
         inhouseplayers = self.request.query_params.get('inhouseplayers')
         if not inhouseplayers:
             inhouseplayers = '5'
-        if inhouseplayers < 0 or inhouseplayers > 10:
+        if int(inhouseplayers) < 0 or int(inhouseplayers) > 10:
             return HttpResponseBadRequest("Invalid number of in-house players.")
 
         given_fields = self.request.query_params.get('fields')
