@@ -125,6 +125,9 @@ def get_mode(logDataDict: dict) -> str:
     for phase in logDataDict.get('phases', []):
         if phase.get('name') == 'Full Fight':
             mode = phase.get('mode')
+    
+    if mode == "Normal Mode":
+        mode = "Normal"
 
     if mode == "Challenge Mode":
         mode = "CM"
