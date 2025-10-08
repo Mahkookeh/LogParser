@@ -36,8 +36,8 @@ def add_player_to_table(conn, cursor, player_id: str, player_character: str) -> 
 
 
 # Add player to Players table
-def add_data_to_table(conn, cursor, log_url: str, log_id: str, player_id: str, player_character: str, player_class: str, current_phase: str, player_target_dps: int, player_percent_target_dps: str, player_power_dps: int, player_condi_dps: int) -> None:
-    cursor.execute("""INSERT INTO "Data" ("LogUrl", "LogId", "PlayerId", "Character", "Class", "Phase", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl", "PlayerId", "Phase") WHERE ("LogUrl" = %s, "PlayerId" = %s, "Phase" = %s) DO NOTHING""", (log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, log_url, player_id, current_phase))
+def add_data_to_table(conn, cursor, log_url: str, log_id: str, player_id: str, player_character: str, player_class: str, current_phase: str, player_target_dps: int, player_percent_target_dps: str, player_power_dps: int, player_condi_dps: int, player_total_breakbar_dmg: int, player_percent_breakbar_dmg: str) -> None:
+    cursor.execute("""INSERT INTO "Data" ("LogUrl", "LogId", "PlayerId", "Character", "Class", "Phase", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl", "PlayerId", "Phase") WHERE ("LogUrl" = %s, "PlayerId" = %s, "Phase" = %s) DO NOTHING""", (log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, player_total_breakbar_dmg, player_percent_breakbar_dmg, log_url, player_id, current_phase))
     conn.commit() 
 
 
@@ -107,30 +107,87 @@ def get_scripts_from_url(URL: str) -> dict:
     return logDataDict
 
 
-# Extract useful data from dictioanry before destroying it
-def extract_useful_data_from_dict(logDataDict: dict) -> Tuple[bool, datetime, datetime, str, str, str, "list[str]", "list[dict]", "list[dict]", "list[dict]"]:
+# If the success value isn't in the top level of keys, search for it in the 'Full Fight' phase
+def get_success_value(logDataDict: dict) -> bool:
+    if "success" in logDataDict:
+        return logDataDict.get('success')
+    for phase in logDataDict.get('phases', []):
+        if phase.get('name') == 'Full Fight':
+            return phase.get('success')
+    
+    return False
+
+
+# Search for mode in the 'Full Fight' phase
+def get_mode(logDataDict: dict) -> str:
+    mode = "Normal"
+
+    for phase in logDataDict.get('phases', []):
+        if phase.get('name') == 'Full Fight':
+            mode = phase.get('mode')
+
+    if mode == "Challenge Mode":
+        mode = "CM"
+
+    if mode == "Emboldened Normal Mode":
+    # List of instance buffs (emboldened)
+        instance_buffs = logDataDict.get('instance_buffs')
+        # Unknown patch changed instance_buffs -> instanceBuffs (most likely Elite Insights Version 2.46.1.2)
+        if not instance_buffs:
+            instance_buffs = logDataDict.get('instanceBuffs')
+        # Check for emboldened stacks        
+        if instance_buffs:
+            for buff in instance_buffs:
+                if isinstance(buff, list):
+                    if buff[0] == 68087:
+                        mode = f"EM{buff[1]}"
+
+    return mode
+
+
+# Extract useful data from dictionary before destroying it
+def extract_useful_data_from_dict(logDataDict: dict) -> Tuple[bool, str, datetime, datetime, str, str, str, "list[dict]", "list[dict]", "list[dict]"]:
+    filename = "NL60-20250912-182546_siax.json"
+
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(logDataDict, f, indent=4, ensure_ascii=False)
+
     # Success
-    success = logDataDict['success']
-
-    # TimeStart
-    time_start = logDataDict['encounterStart']
-    # TimeEnd
-    time_end = logDataDict['encounterEnd']
-
-    # Duration
-    duration = logDataDict['encounterDuration']
-
-    # EliteInsightsVersion
-    elite_insights_version = logDataDict['parser']
+    success = get_success_value(logDataDict)
     
     # Boss Name
-    boss_name = logDataDict['fightName']
+    boss_name = (
+        logDataDict.get('fightName')
+        or logDataDict.get('encounterName')
+        or logDataDict.get('logName')
+        or logDataDict.get('bossName')
+    )
+    # Check archaic CM
+    archaic_cm_flag = boss_name.endswith(" CM")
 
-    # List of instance buffs (emboldened)
-    instance_buffs = logDataDict.get('instance_buffs')
-    # Unknown patch changed instance_buffs -> instanceBuffs (most likely Elite Insights Version 2.46.1.2)
-    if not instance_buffs:
-        instance_buffs = logDataDict.get('instanceBuffs')
+    # Mode
+    if archaic_cm_flag:
+        mode = "CM"
+        boss_name = boss_name[:-len(" CM")]
+    else:
+        mode = get_mode(logDataDict)
+
+    # TimeStart
+    time_start = (logDataDict.get('encounterStart')
+        or logDataDict.get('logStart')
+    )
+    # TimeEnd
+    time_end = (logDataDict.get('encounterEnd')
+        or logDataDict.get('logEnd')
+    )
+
+    # Duration
+    duration = (logDataDict.get('encounterDuration')
+        or logDataDict.get('evtcRecordingDuration')
+    )
+
+    # EliteInsightsVersion
+    elite_insights_version = logDataDict.get('parser')
 
     # List of dictionaries containing player data
     player_dict = logDataDict['players']
@@ -141,7 +198,7 @@ def extract_useful_data_from_dict(logDataDict: dict) -> Tuple[bool, datetime, da
     # DPS numbers 
     target_dmg_distributions_taken = logDataDict['targets'][0]['details']['dmgDistributionsTaken']
 
-    return success, time_start, time_end, duration, elite_insights_version, boss_name, instance_buffs, player_dict, phases, target_dmg_distributions_taken
+    return success, mode, time_start, time_end, duration, elite_insights_version, boss_name, player_dict, phases, target_dmg_distributions_taken
 
 
 # Parse log and upload data to database
@@ -161,7 +218,7 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
         return False
 
     # Fill important vars with data from dictionary and delete dictionary
-    success, time_start, time_end, duration, elite_insights_version, boss_name, instance_buffs, player_dict, phases, target_dmg_distributions_taken = extract_useful_data_from_dict(logDataDict)
+    success, mode, time_start, time_end, duration, elite_insights_version, boss_name, player_dict, phases, target_dmg_distributions_taken = extract_useful_data_from_dict(logDataDict)
     del logDataDict
     gc.collect()
 
@@ -178,20 +235,6 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
     time_end_timestamp = datetime.strptime(time_end, "%Y-%m-%d %H:%M:%S %z")
     time_end_timestamp = time_end_timestamp.astimezone(pytz.utc)
 
-    # Check mode
-    mode = "Normal"
-    # Check CM
-    cm_flag = boss_name.endswith(" CM")
-    if cm_flag:
-        mode = "CM"
-        boss_name = boss_name[:-len(" CM")]
-    else:
-        # Check emboldened        
-        if instance_buffs:
-            for buff in instance_buffs:
-                if isinstance(buff, list):
-                    if buff[0] == 68087:
-                        mode = f"EM{buff[1]}"
 
     # Parse player data and remove NPCs
     players = [(player['acc'], player['profession'], player['name']) for player in player_dict if player['profession'] != 'NPC']
@@ -214,35 +257,70 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
         current_phase_name = current_phase['name']
         phase_duration = phases[phase_idx]['duration'] / 1000
         if current_phase_name in desired_phases:
-            all_player_stats = []
-            num_extraneous_players = 0
+            # num_extraneous_players = 0
+
+            # Total damages
+            total_target_damage_taken = 0
+            total_target_breakbar_damage_taken = 0
+
+            # Gather player data from log            
+            player_stats = []
             for player_idx in range(len(players)):
-                player_stats = []
+                current_player_stats = []
                 player_id, player_class, player_character = players[player_idx]
 
-                player_target_dmg = current_phase['dpsStatsTargets'][player_idx][0][0]
-                player_target_dps = round(player_target_dmg / phase_duration)
-                target_total_dmg_taken = target_dmg_distributions_taken[phase_idx]['contributedDamage']
-                ## TODO resolve Divided By Zero errors, until then, this will catch them
-                if target_total_dmg_taken == 0:
-                    player_percent_target_dps_value = 0
-                if target_total_dmg_taken != 0:            
-                    player_percent_target_dps_value = player_target_dmg / target_total_dmg_taken
-                player_percent_target_dps = str(round(player_percent_target_dps_value*100, 2)) + '%'
-                player_power_dps = round(current_phase['dpsStatsTargets'][player_idx][0][1] / phase_duration)         
-                player_condi_dps = round(current_phase['dpsStatsTargets'][player_idx][0][2] / phase_duration)
-                player_stats = [
+                player_dps_stats_targets = current_phase['dpsStatsTargets'][player_idx]
+                player_total_breakbar_damage = current_phase['dpsStats'][player_idx][3]
+                target_priorities = current_phase['targetPriorities']
+                player_total_target_damage = 0
+                player_total_target_power_damage = 0
+                player_total_target_condi_damage = 0
+                for target, target_priority in zip(player_dps_stats_targets, target_priorities):
+                    if target_priority in (0, 1):
+                        player_total_target_damage += target[0]
+                        player_total_target_power_damage += target[1]
+                        player_total_target_condi_damage += target[2]
+
+                total_target_damage_taken += player_total_target_damage
+                total_target_breakbar_damage_taken += player_total_breakbar_damage
+                player_target_dps = round(player_total_target_damage / phase_duration)
+                player_power_dps = round(player_total_target_power_damage / phase_duration)
+                player_condi_dps = round(player_total_target_condi_damage / phase_duration)
+                current_player_stats = [
                     player_class,
                     player_character,
                     player_id,
                     player_target_dps,
-                    player_percent_target_dps,
+                    player_total_target_damage,
                     player_power_dps,
-                    player_condi_dps
-                    ]        
-                all_player_stats.append(player_stats)
+                    player_condi_dps,
+                    player_total_breakbar_damage
+                    ]     
+                player_stats.append(current_player_stats)
 
-                add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase_name, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps)
+            for player in player_stats:
+                ## TODO resolve Divided By Zero errors, until then, this will catch them
+                if total_target_damage_taken == 0:
+                    player_percent_target_dps_value = 0
+                if total_target_damage_taken != 0:            
+                    player_percent_target_dps_value = player[4] / total_target_damage_taken
+                player_percent_target_dps = str(round(player_percent_target_dps_value*100, 2)) + '%'
+
+                if total_target_breakbar_damage_taken == 0:
+                    player_percent_breakbar_value = 0
+                if total_target_breakbar_damage_taken != 0:
+                    player_percent_breakbar_value = player[7] / total_target_breakbar_damage_taken
+                player_percent_breakbar_damage = str(round(player_percent_breakbar_value*100, 2)) + '%'
+                               
+                player_class = player[0] # player_class
+                player_character = player[1] # player_character
+                player_id = player[2] # player_id
+                player_target_dps = player[3] # player_target_dps
+                player_power_dps = player[5] # player_power_dps
+                player_condi_dps = player[6] # player_condi_dps
+                player_total_breakbar_damage = player[7] # player_total_breakbar_damage
+                
+                add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase_name, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, player_total_breakbar_damage, player_percent_breakbar_damage)
     return True
 
 

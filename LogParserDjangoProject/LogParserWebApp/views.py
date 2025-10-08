@@ -455,7 +455,7 @@ class LogsWithDataView(APIView):
         # Convert IOStream to CSV reader
         urlListFile = request.FILES.get('Url List')
         urlListLimit = request.data['Url List Limit']
-        if urlListLimit is None:
+        if urlListLimit is None or '':
             urlListLimit = 50
         if urlListFile is None:
             return HttpResponseBadRequest("Missing Url List")
@@ -520,13 +520,13 @@ class LogsWithDataView(APIView):
 
         given_fields = self.request.query_params.get('fields')
         if not given_fields:
-            default_fields = 'Boss,Duration,Mode,Phase,PlayerId,Character,Class,TargetDps,PercentTargetDps,PowerDps,CondiDps,LogUrl,InHousePlayers,TotalPlayers'
+            default_fields = 'Boss,Duration,Mode,Phase,PlayerId,Character,Class,TargetDps,PercentTargetDps,PowerDps,CondiDps,TotalBreakbarDmg,PercentBreakbarDmg,LogUrl,InHousePlayers,TotalPlayers'
             context = super().get_renderer_context()
             context['header'] = (default_fields.split(','))
 
         # Connect to database and call query
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "LogUrl", inhouseplayers, "TotalPlayers" FROM (
+            cursor.execute("""SELECT "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg", "LogUrl", inhouseplayers, "TotalPlayers" FROM (
                 SELECT * FROM
                     (SELECT "LogUrl", "PlayerId", "Phase", count(unnestedgroup) as InHousePlayers FROM (
                             SELECT * FROM (
@@ -559,6 +559,6 @@ class LogsWithDataView(APIView):
             leaderboard_list = cursor.fetchall()
 
         # Serialize result data
-        serialized_logs = [LogsWithData(**{'Boss' : m[0], 'Duration' : m[1], 'Mode' : m[2], 'Phase' : m[3], 'PlayerId' : m[4], 'Character' : m[5], 'Class' : m[6], 'TargetDps' : m[7], 'PercentTargetDps' : m[8], 'PowerDps' : m[9], 'CondiDps' : m[10], 'LogUrl' : m[11], 'InHousePlayers' : m[12], 'TotalPlayers' : m[13]}) for m in leaderboard_list]
+        serialized_logs = [LogsWithData(**{'Boss' : m[0], 'Duration' : m[1], 'Mode' : m[2], 'Phase' : m[3], 'PlayerId' : m[4], 'Character' : m[5], 'Class' : m[6], 'TargetDps' : m[7], 'PercentTargetDps' : m[8], 'PowerDps' : m[9], 'CondiDps' : m[10], 'TotalBreakbarDmg' : m[11], 'PercentBreakbarDmg' : m[12], 'LogUrl' : m[13], 'InHousePlayers' : m[14], 'TotalPlayers' : m[15]}) for m in leaderboard_list]
         serializer = LogsWithDataSerializer(serialized_logs, many=True)
         return Response(serializer.data)

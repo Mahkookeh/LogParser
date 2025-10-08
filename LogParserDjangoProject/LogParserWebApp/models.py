@@ -21,6 +21,8 @@ class Data(models.Model):
     PercentTargetDps = models.TextField(db_column='PercentTargetDps', blank=True, null=True)  
     PowerDps = models.IntegerField(db_column='PowerDps', blank=True, null=True)  
     CondiDps = models.IntegerField(db_column='CondiDps', blank=True, null=True)  
+    TotalBreakbarDmg = models.IntegerField(db_column='TotalBreakbarDmg', blank=True, null=True)  
+    PercentBreakbarDmg = models.TextField(db_column='PercentBreakbarDmg', blank=True, null=True)  
 
     # ...
     def __str__(self):
@@ -79,6 +81,8 @@ class LogsWithData(models.Model):
     PercentTargetDps = models.TextField(db_column='PercentTargetDps', blank=True, null=True)  
     PowerDps = models.IntegerField(db_column='PowerDps', blank=True, null=True)  
     CondiDps = models.IntegerField(db_column='CondiDps', blank=True, null=True)  
+    TotalBreakbarDmg = models.IntegerField(db_column='TotalBreakbarDmg', blank=True, null=True)  
+    PercentBreakbarDmg = models.TextField(db_column='PercentBreakbarDmg', blank=True, null=True)  
     LogUrl = models.TextField(db_column='LogUrl', primary_key=True)  
     InHousePlayers = models.IntegerField(db_column='InHousePlayers', blank=True, null=True)  
     TotalPlayers = models.IntegerField(db_column='TotalPlayers', blank=True, null=True)  
