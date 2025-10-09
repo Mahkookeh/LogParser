@@ -73,8 +73,8 @@ def get_data_table_by_log_url(conn, cursor):
     cursor.execute("""SELECT * FROM "Data" """)
     data_list = cursor.fetchall()
 
-    for logurl, logid, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg in data_list:
-        data_dict.setdefault((logurl, playerid, phase), []).extend([[logurl, logid, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg]])
+    for logurl, logid, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen in data_list:
+        data_dict.setdefault((logurl, playerid, phase), []).extend([[logurl, logid, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen]])
     return data_dict
 
 def get_data_table_by_log_id(conn, cursor):
@@ -82,15 +82,15 @@ def get_data_table_by_log_id(conn, cursor):
     cursor.execute("""SELECT * FROM "Data" """)
     data_list = cursor.fetchall()
 
-    for logurl, logid, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg in data_list:
-        data_dict.setdefault((logid, playerid, phase), []).extend([[logurl, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg]])
+    for logurl, logid, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen in data_list:
+        data_dict.setdefault((logid, playerid, phase), []).extend([[logurl, playerid, character, gw2class, phase, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen]])
     return data_dict
 
 
 
 def get_custom_leaderboard_table_by_log_url(conn, cursor):
 
-    cursor.execute("""SELECT "LogId", "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg, "LogUrl", "inhouseplayers", "TotalPlayers" FROM(
+    cursor.execute("""SELECT "LogId", "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg, "QuickGen", "AlacGen", "LogUrl", "inhouseplayers", "TotalPlayers" FROM(
         SELECT * FROM 
         (SELECT * FROM (SELECT "LogId", "PlayerId", "Phase", max("EliteInsightVersion") as "EliteInsightVersion"  FROM public."Data" NATURAL JOIN public."Logs"
         Group by "LogId", "PlayerId", "Phase") x LEFT JOIN (SELECT "PlayerId" as tempPlayer , unnest("Groups") as unnestedGroup FROM public."Players") y
@@ -111,8 +111,8 @@ def get_custom_leaderboard_table_by_log_url(conn, cursor):
     leaderboard_dict = dict()
     leaderboard_list = cursor.fetchall()
 
-    for logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, logurl, inhouseplayers, totalplayers in leaderboard_list:
-        leaderboard_dict.setdefault((logurl, playerid, phase), []).extend([[logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, inhouseplayers, totalplayers]])
+    for logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen, logurl, inhouseplayers, totalplayers in leaderboard_list:
+        leaderboard_dict.setdefault((logurl, playerid, phase), []).extend([[logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen, inhouseplayers, totalplayers]])
     return leaderboard_dict
 
 
@@ -120,7 +120,7 @@ def get_custom_leaderboard_table_by_log_url(conn, cursor):
 
 def get_custom_leaderboard_table(conn, cursor):
 
-    cursor.execute("""SELECT "LogId", "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg", "LogUrl", "inhouseplayers", "TotalPlayers", "EliteInsightVersion" FROM(
+    cursor.execute("""SELECT "LogId", "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg", "QuickGen", "AlacGen", "LogUrl", "inhouseplayers", "TotalPlayers", "EliteInsightVersion" FROM(
         SELECT * FROM 
         (SELECT * FROM (SELECT "LogId", "PlayerId", "Phase", max("EliteInsightVersion") as "EliteInsightVersion"  FROM public."Data" NATURAL JOIN public."Logs"
         Group by "LogId", "PlayerId", "Phase") x LEFT JOIN (SELECT "PlayerId" as tempPlayer , unnest("Groups") as unnestedGroup FROM public."Players") y
@@ -142,9 +142,9 @@ def get_custom_leaderboard_table(conn, cursor):
     leaderboard_dict_by_url = dict()
     leaderboard_list = cursor.fetchall()
 
-    for logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, logurl, inhouseplayers, totalplayers, eliteinsightversion in leaderboard_list:
-        leaderboard_dict_by_id.setdefault((logid, playerid, phase), []).extend([[boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, logurl, inhouseplayers, totalplayers, eliteinsightversion]])
-        leaderboard_dict_by_url.setdefault((logurl, playerid, phase), []).extend([[logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, inhouseplayers, totalplayers, eliteinsightversion]])
+    for logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen, logurl, inhouseplayers, totalplayers, eliteinsightversion in leaderboard_list:
+        leaderboard_dict_by_id.setdefault((logid, playerid, phase), []).extend([[boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen, logurl, inhouseplayers, totalplayers, eliteinsightversion]])
+        leaderboard_dict_by_url.setdefault((logurl, playerid, phase), []).extend([[logid, boss, duration, mode, phase, playerid, character, gw2class, targetdps, percenttargetdps, powerdps, condidps, totalbreakbardmg, percentbreakbardmg, quickgen, alacgen, inhouseplayers, totalplayers, eliteinsightversion]])
 
     return leaderboard_dict_by_id, leaderboard_dict_by_url
 
@@ -169,5 +169,6 @@ for k, v in custom_log_id_table.items():
 output_file = "test.csv"
 header = "Boss, Duration, Mode, Phase, Player Id, Character, Class, "\
             "Target DPS, % Target DPS, Power DPS, Condi DPS, TotalBreakbarDmg, "\
-            "PercentBreakbarDmg, Log Url, In-House Players, Total Players\n"
+            "PercentBreakbarDmg, QuickGen, AlacGen, Log Url, In-House Players, "\
+            "Total Players\n"
 write_to_file(output_file, header, max_custom_log_id_table)

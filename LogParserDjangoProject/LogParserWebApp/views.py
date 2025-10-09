@@ -520,41 +520,44 @@ class LogsWithDataView(APIView):
 
         given_fields = self.request.query_params.get('fields')
         if not given_fields:
-            default_fields = 'Boss,Duration,Mode,Phase,PlayerId,Character,Class,TargetDps,PercentTargetDps,PowerDps,CondiDps,TotalBreakbarDmg,PercentBreakbarDmg,LogUrl,InHousePlayers,TotalPlayers'
+            default_fields = 'Boss,Duration,Mode,Phase,PlayerId,Character,Class,TargetDps,PercentTargetDps,PowerDps,CondiDps,TotalBreakbarDmg,PercentBreakbarDmg,QuickGen,AlacGen,LogUrl,InHousePlayers,TotalPlayers'
             context = super().get_renderer_context()
             context['header'] = (default_fields.split(','))
 
         # Connect to database and call query
         with connection.cursor() as cursor:
-            cursor.execute("""SELECT "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg", "LogUrl", inhouseplayers, "TotalPlayers" FROM (
-                SELECT * FROM
-                    (SELECT "LogUrl", "PlayerId", "Phase", count(unnestedgroup) as InHousePlayers FROM (
-                            SELECT * FROM (
-                                SELECT "LogUrl", "PlayerId", "Boss" , "Phase", unnest("Players") as unnestedPlayer
-                                FROM public."Data" NATURAL JOIN public."Logs"
-                            ) unnestedPlayersTable 
-                            LEFT JOIN (
-                                SELECT "PlayerId" as tempPlayer , unnest("Groups") as unnestedGroup FROM public."Players") unnestedGroupsTable 
-                            ON unnestedPlayer = tempPlayer
-                            WHERE unnestedGroup = %s
-                            ORDER BY "LogUrl" ASC, unnestedPlayersTable."PlayerId" ASC) unnestedPlayersAndGroupsTable
-                        GROUP BY "LogUrl", unnestedPlayersAndGroupsTable."PlayerId", "Phase") aggregatedInHousePlayersAll
+            cursor.execute(
+                """
+                SELECT "Boss", "Duration", "Mode", "Phase", "PlayerId", "Character", "Class", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg", "QuickGen", "AlacGen", "LogUrl", inhouseplayers, "TotalPlayers" 
+                FROM (
+                    SELECT * FROM
+                        (SELECT "LogUrl", "PlayerId", "Phase", count(unnestedgroup) as InHousePlayers FROM (
+                                SELECT * FROM (
+                                    SELECT "LogUrl", "PlayerId", "Boss" , "Phase", unnest("Players") as unnestedPlayer
+                                    FROM public."Data" NATURAL JOIN public."Logs"
+                                ) unnestedPlayersTable 
+                                LEFT JOIN (
+                                    SELECT "PlayerId" as tempPlayer , unnest("Groups") as unnestedGroup FROM public."Players") unnestedGroupsTable 
+                                ON unnestedPlayer = tempPlayer
+                                WHERE unnestedGroup = %s
+                                ORDER BY "LogUrl" ASC, unnestedPlayersTable."PlayerId" ASC) unnestedPlayersAndGroupsTable
+                            GROUP BY "LogUrl", unnestedPlayersAndGroupsTable."PlayerId", "Phase") aggregatedInHousePlayersAll
+                        NATURAL JOIN (
+                            SELECT "PlayerId" , unnest("Groups") as unnestedGroup FROM public."Players") playerGroupsTable
+                        WHERE unnestedGroup = %s) aggregatedInHousePlayersAll
+
                     NATURAL JOIN (
-                        SELECT "PlayerId" , unnest("Groups") as unnestedGroup FROM public."Players") playerGroupsTable
-                    WHERE unnestedGroup = %s) aggregatedInHousePlayersAll
+                    
+                    SELECT max("LogUrl") as LogUrl, "LogId", "PlayerId", "Phase", max("EliteInsightVersion") as EliteInsightVersion FROM 
+                    public."Data" NATURAL JOIN public."Logs"
+                    GROUP BY "LogId", "PlayerId", "Phase") organizedEliteInsightVersionTable
+                    
+                NATURAL JOIN (
+                    SELECT * FROM public."Data" NATURAL JOIN public."Logs" 
+                ) allLogsWithDataTable
 
-            NATURAL JOIN (
-                
-                SELECT max("LogUrl") as LogUrl, "LogId", "PlayerId", "Phase", max("EliteInsightVersion") as EliteInsightVersion FROM 
-                public."Data" NATURAL JOIN public."Logs"
-                GROUP BY "LogId", "PlayerId", "Phase") organizedEliteInsightVersionTable
-                
-            NATURAL JOIN (
-                SELECT * FROM public."Data" NATURAL JOIN public."Logs" 
-            ) allLogsWithDataTable
-
-            WHERE "LogUrl" = logurl AND inhouseplayers >=  %s
-            ORDER BY "LogId", "PlayerId", "Phase" """, (group, group, inhouseplayers))
+                WHERE "LogUrl" = logurl AND inhouseplayers >=  %s
+                ORDER BY "LogId", "PlayerId", "Phase" """, (group, group, inhouseplayers))
 
             leaderboard_list = cursor.fetchall()
 

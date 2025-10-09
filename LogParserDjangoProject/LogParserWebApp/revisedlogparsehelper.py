@@ -21,28 +21,167 @@ def generate_log_id():
 
 
 # Add log to Logs table
-def add_log_to_table(conn, cursor, log_url: str, log_id: str, boss_name: str, mode: str, duration: str, time_start_timestamp: datetime, time_end_timestamp: datetime, players_list: "list[str]", total_player_count: int, elite_insights_version: str) -> str:
+def add_log_to_table(
+        conn, 
+        cursor, 
+        log_url: str, 
+        log_id: str, 
+        boss_name: str, 
+        mode: str, 
+        duration: str, 
+        time_start_timestamp: datetime, 
+        time_end_timestamp: datetime, 
+        players_list: "list[str]", 
+        total_player_count: int, 
+        elite_insights_version: str) -> str:
     log_id = check_log_equality(cursor, log_id, boss_name, duration, time_start_timestamp, time_end_timestamp, players_list)
-    cursor.execute("""INSERT INTO "Logs" ("LogUrl", "LogId", "Boss", "Mode", "Duration", "TimeStart", "TimeEnd", "Players", "TotalPlayers", "EliteInsightVersion") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl") WHERE ("LogUrl" = %s) DO NOTHING""", (log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version, log_url))
+    cursor.execute(
+        """
+        INSERT INTO "Logs" (
+            "LogUrl", 
+            "LogId", 
+            "Boss", 
+            "Mode", 
+            "Duration", 
+            "TimeStart", 
+            "TimeEnd", 
+            "Players", 
+            "TotalPlayers", 
+            "EliteInsightVersion"
+        ) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+        ON CONFLICT ("LogUrl") WHERE ("LogUrl" = %s) DO NOTHING
+        """, 
+        (
+            log_url, 
+            log_id, 
+            boss_name, 
+            mode, 
+            duration, 
+            time_start_timestamp, 
+            time_end_timestamp, 
+            players_list, 
+            total_player_count, 
+            elite_insights_version, 
+            log_url
+        )
+    )
+
     conn.commit() 
     return log_id
 
 
 # Add player to Players table
-def add_player_to_table(conn, cursor, player_id: str, player_character: str) -> None:
+def add_player_to_table(
+        conn,
+        cursor, 
+        player_id: str, 
+        player_character: str
+    ) -> None:
     group_name = ''
-    cursor.execute("""INSERT INTO "Players" ("PlayerId", "Groups", "Characters") VALUES (%s, ARRAY [%s], ARRAY [%s]) ON CONFLICT ("PlayerId") DO UPDATE SET "Groups" = CASE WHEN %s = ANY("Players"."Groups") THEN "Players"."Groups" ELSE array_append("Players"."Groups", %s) END, "Characters" = CASE WHEN %s = ANY("Players"."Characters") THEN "Players"."Characters" ELSE array_append("Players"."Characters", %s) END""", (player_id, group_name, player_character, group_name, group_name, player_character, player_character))
+    cursor.execute(
+        """
+        INSERT INTO "Players" (
+            "PlayerId", 
+            "Groups", 
+            "Characters"
+        ) 
+        VALUES (%s, ARRAY [%s], ARRAY [%s]) 
+        ON CONFLICT ("PlayerId") DO UPDATE 
+        SET 
+            "Groups" = CASE 
+                WHEN %s = ANY("Players"."Groups") THEN "Players"."Groups" 
+                ELSE array_append("Players"."Groups", %s) 
+            END, 
+            "Characters" = CASE 
+                WHEN %s = ANY("Players"."Characters") THEN "Players"."Characters" 
+                ELSE array_append("Players"."Characters", %s) 
+            END
+        """, 
+        (
+            player_id, 
+            group_name, 
+            player_character, 
+            group_name, 
+            group_name, 
+            player_character, 
+            player_character
+        )
+    )
     conn.commit() 
 
 
 # Add player to Players table
-def add_data_to_table(conn, cursor, log_url: str, log_id: str, player_id: str, player_character: str, player_class: str, current_phase: str, player_target_dps: int, player_percent_target_dps: str, player_power_dps: int, player_condi_dps: int, player_total_breakbar_dmg: int, player_percent_breakbar_dmg: str) -> None:
-    cursor.execute("""INSERT INTO "Data" ("LogUrl", "LogId", "PlayerId", "Character", "Class", "Phase", "TargetDps", "PercentTargetDps", "PowerDps", "CondiDps", "TotalBreakbarDmg", "PercentBreakbarDmg") VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT ("LogUrl", "PlayerId", "Phase") WHERE ("LogUrl" = %s, "PlayerId" = %s, "Phase" = %s) DO NOTHING""", (log_url, log_id, player_id, player_character, player_class, current_phase, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, player_total_breakbar_dmg, player_percent_breakbar_dmg, log_url, player_id, current_phase))
+def add_data_to_table(
+        conn, 
+        cursor, 
+        log_url: str, 
+        log_id: str, 
+        player_id: str, 
+        player_character: str, 
+        player_class: str, 
+        current_phase: str, 
+        player_target_dps: int, 
+        player_percent_target_dps: str, 
+        player_power_dps: int, 
+        player_condi_dps: int, 
+        player_total_breakbar_dmg: int, 
+        player_percent_breakbar_dmg: str,
+        player_quick_gen: str,
+        player_alac_gen: str) -> None:
+    cursor.execute(
+        """
+        INSERT INTO "Data" (
+            "LogUrl",
+            "LogId",
+            "PlayerId",
+            "Character",
+            "Class",
+            "Phase",
+            "TargetDps",
+            "PercentTargetDps",
+            "PowerDps",
+            "CondiDps",
+            "TotalBreakbarDmg",
+            "PercentBreakbarDmg",
+            "QuickGen", 
+            "AlacGen"
+        ) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
+        ON CONFLICT ("LogUrl", "PlayerId", "Phase") WHERE ("LogUrl" = %s, "PlayerId" = %s, "Phase" = %s) DO NOTHING""", 
+        (
+            log_url, 
+            log_id, 
+            player_id, 
+            player_character, 
+            player_class, 
+            current_phase, 
+            player_target_dps, 
+            player_percent_target_dps, 
+            player_power_dps, 
+            player_condi_dps, 
+            player_total_breakbar_dmg, 
+            player_percent_breakbar_dmg, 
+            player_quick_gen, 
+            player_alac_gen, 
+            log_url, 
+            player_id, 
+            current_phase
+        )
+    )
     conn.commit() 
 
 
 # Check if two logs are the same fight
-def check_log_equality(cursor, log_id: str, boss_name: str, duration: str, time_start_timestamp: datetime, time_end_timestamp: datetime, players_list: "list[str]") -> str:    
+def check_log_equality(
+        cursor, 
+        log_id: str, 
+        boss_name: str, 
+        duration: str, 
+        time_start_timestamp: datetime, 
+        time_end_timestamp: datetime, 
+        players_list: "list[str]"
+    ) -> str:    
     duration_datetime = datetime.strptime(duration, "%Mm %Ss %fms")
     duration_timedelta = timedelta(minutes=duration_datetime.minute,
                                 seconds=duration_datetime.second,
@@ -54,7 +193,26 @@ def check_log_equality(cursor, log_id: str, boss_name: str, duration: str, time_
     time_end_minus5 = time_end_timestamp - timedelta(seconds=5)
     time_end_plus5 = time_end_timestamp + timedelta(seconds=5)
 
-    cursor.execute("""SELECT "LogId", "LogUrl",  "Players" FROM "Logs" where "Logs"."Boss" = %s AND "Logs"."Duration" BETWEEN %s::interval AND %s::interval AND "Logs"."TimeStart" BETWEEN %s AND %s AND "Logs"."TimeEnd" BETWEEN %s AND %s""", (boss_name, duration_minus5, duration_plus5, time_start_minus5, time_start_plus5, time_end_minus5, time_end_plus5))
+    cursor.execute(
+        """
+        SELECT "LogId", "LogUrl", "Players" 
+        FROM "Logs" 
+        WHERE 
+            "Logs"."Boss" = %s 
+            AND "Logs"."Duration" BETWEEN %s::interval AND %s::interval 
+            AND "Logs"."TimeStart" BETWEEN %s AND %s 
+            AND "Logs"."TimeEnd" BETWEEN %s AND %s
+        """, 
+        (
+            boss_name, 
+            duration_minus5, 
+            duration_plus5, 
+            time_start_minus5, 
+            time_start_plus5, 
+            time_end_minus5, 
+            time_end_plus5
+        )
+    )
     log_equality_list = cursor.fetchall()
 
     new_log_id = log_id
@@ -198,10 +356,7 @@ def extract_useful_data_from_dict(logDataDict: dict) -> Tuple[bool, str, datetim
     # List of dictionaries containing phase data
     phases = logDataDict['phases']
 
-    # DPS numbers 
-    target_dmg_distributions_taken = logDataDict['targets'][0]['details']['dmgDistributionsTaken']
-
-    return success, mode, time_start, time_end, duration, elite_insights_version, boss_name, player_dict, phases, target_dmg_distributions_taken
+    return success, mode, time_start, time_end, duration, elite_insights_version, boss_name, player_dict, phases
 
 
 # Parse log and upload data to database
@@ -221,7 +376,7 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
         return False
 
     # Fill important vars with data from dictionary and delete dictionary
-    success, mode, time_start, time_end, duration, elite_insights_version, boss_name, player_dict, phases, target_dmg_distributions_taken = extract_useful_data_from_dict(logDataDict)
+    success, mode, time_start, time_end, duration, elite_insights_version, boss_name, player_dict, phases = extract_useful_data_from_dict(logDataDict)
     del logDataDict
     gc.collect()
 
@@ -249,7 +404,20 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
     # Create list of player ids involved in the log
     players_list = [player[0] for player in players]
     total_player_count = len(players_list)
-    log_id = add_log_to_table(conn, cursor, log_url, log_id, boss_name, mode, duration, time_start_timestamp, time_end_timestamp, players_list, total_player_count, elite_insights_version)
+    log_id = add_log_to_table(
+        conn, 
+        cursor, 
+        log_url, 
+        log_id, 
+        boss_name, 
+        mode, 
+        duration, 
+        time_start_timestamp, 
+        time_end_timestamp, 
+        players_list, 
+        total_player_count, 
+        elite_insights_version
+    )
 
     desired_phases = phase_config[boss_name] if boss_name in phase_config else ['Full Fight']
 
@@ -289,6 +457,10 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
                 player_target_dps = round(player_total_target_damage / phase_duration)
                 player_power_dps = round(player_total_target_power_damage / phase_duration)
                 player_condi_dps = round(player_total_target_condi_damage / phase_duration)
+                
+                player_quick_gen = current_phase["buffsStatContainer"]["boonGenGroupStats"][player_idx]["data"][2][0]
+                player_alac_gen = current_phase["buffsStatContainer"]["boonGenGroupStats"][player_idx]["data"][3][0]
+                
                 current_player_stats = [
                     player_class,
                     player_character,
@@ -297,7 +469,9 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
                     player_total_target_damage,
                     player_power_dps,
                     player_condi_dps,
-                    player_total_breakbar_damage
+                    player_total_breakbar_damage,
+                    player_quick_gen,
+                    player_alac_gen,
                     ]     
                 player_stats.append(current_player_stats)
 
@@ -322,8 +496,27 @@ def parse_and_upload_data_for_url(conn, cursor, URL: str, phase_config: "list[st
                 player_power_dps = player[5] # player_power_dps
                 player_condi_dps = player[6] # player_condi_dps
                 player_total_breakbar_damage = player[7] # player_total_breakbar_damage
+                player_quick_gen = player[8] # player_quick_gen
+                player_alac_gen = player[9] # player_alac_gen
                 
-                add_data_to_table(conn, cursor, log_url, log_id, player_id, player_character, player_class, current_phase_name, player_target_dps, player_percent_target_dps, player_power_dps, player_condi_dps, player_total_breakbar_damage, player_percent_breakbar_damage)
+                add_data_to_table(
+                    conn, 
+                    cursor, 
+                    log_url, 
+                    log_id, 
+                    player_id, 
+                    player_character, 
+                    player_class, 
+                    current_phase_name, 
+                    player_target_dps, 
+                    player_percent_target_dps, 
+                    player_power_dps, 
+                    player_condi_dps, 
+                    player_total_breakbar_damage, 
+                    player_percent_breakbar_damage, 
+                    player_quick_gen, 
+                    player_alac_gen
+                )
     return True
 
 
